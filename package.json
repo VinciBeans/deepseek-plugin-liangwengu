@@ -1,0 +1,55 @@
+{
+  "name": "liangwenfeng-gu",
+  "version": "1.0.0",
+  "private": true,
+  "description": "梁文峰谷 DSH 插件：右上角显示当前算力错峰时段（梁文峰 / 梁文谷）。",
+  "type": "module",
+  "main": "lib/index.js",
+  "types": "lib/types/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./lib/types/index.d.ts",
+      "default": "./lib/index.js"
+    },
+    "./client": {
+      "types": "./lib/types/client/index.d.ts",
+      "default": "./lib/client.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "client": {
+      "platform": "web"
+    }
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "node test/time-slot.test.mjs"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "@deepseek-ai/dsh-client-runtime": "0.1.0-rc.6",
+    "@deepseek-ai/dsh-client-ui-layout": "0.1.0-rc.6",
+    "@types/react": "18.3.24",
+    "esbuild": "^0.25.0",
+    "react": "18.3.1",
+    "react-dom": "18.3.1",
+    "typescript": "^5.7.2"
+  },
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "time-slot",
+    "liangwenfeng-gu"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/X-hub-spec/liangwenfeng-gu.git"
+  },
+  "homepage": "https://github.com/X-hub-spec/liangwenfeng-gu#readme",
+  "bugs": {
+    "url": "https://github.com/X-hub-spec/liangwenfeng-gu/issues"
+  }
+}
