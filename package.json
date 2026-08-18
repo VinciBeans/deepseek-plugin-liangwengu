@@ -1,8 +1,8 @@
 {
-  "name": "liangwenfeng-gu",
+  "name": "liangwengu",
   "version": "1.0.0",
   "private": true,
-  "description": "梁文峰谷 DSH 插件：右上角显示当前算力错峰时段（梁文峰 / 梁文谷）。",
+  "description": "梁文谷 DSH 插件：右上角显示当前算力错峰时段（梁文峰 / 梁文谷）。",
   "type": "module",
   "main": "lib/index.js",
   "types": "lib/types/index.d.ts",
@@ -42,14 +42,14 @@
     "dsh-plugin",
     "deepseek-harness",
     "time-slot",
-    "liangwenfeng-gu"
+    "liangwengu"
   ],
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/X-hub-spec/liangwenfeng-gu.git"
+    "url": "git+https://github.com/X-hub-spec/liangwengu.git"
   },
-  "homepage": "https://github.com/X-hub-spec/liangwenfeng-gu#readme",
+  "homepage": "https://github.com/X-hub-spec/liangwengu#readme",
   "bugs": {
-    "url": "https://github.com/X-hub-spec/liangwenfeng-gu/issues"
+    "url": "https://github.com/X-hub-spec/liangwengu/issues"
   }
 }

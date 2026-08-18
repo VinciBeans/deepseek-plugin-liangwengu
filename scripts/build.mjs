@@ -1,5 +1,5 @@
 /**
- * Build liangwenfeng-gu:
+ * Build liangwengu:
  *   - lib/index.js   — node half (ESM), the empty host-side plugin body
  *   - lib/client.js  — browser half, a closure-factory CJS bundle in the
  *                      exact shape the DSH client module system expects:
@@ -10,7 +10,7 @@
 import { build } from 'esbuild'
 import { mkdir } from 'node:fs/promises'
 
-const ID = 'liangwenfeng-gu'
+const ID = 'liangwengu'
 
 await mkdir('lib', { recursive: true })
 

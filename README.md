@@ -1,4 +1,4 @@
-# 梁文峰谷
+# 梁文谷
 
 > 一个会看时间的 DSH 插件。  
 > 它蹲在屏幕右上角，帮你盯住 DeepSeek 算力错峰时段：  
@@ -7,7 +7,7 @@
 
 ## 这是什么
 
-**梁文峰谷** 是一个 DeepSeek Harness (DSH) 客户端插件，会在 Web GUI 的右上角显示一个当前时段角标。
+**梁文谷** 是一个 DeepSeek Harness (DSH) 客户端插件，会在 Web GUI 的右上角显示一个当前时段角标。
 
 它不会打扰你，不会抢焦点，也不会偷偷用你的算力写小说。它只是安静地做一个时间提示器。
 
@@ -21,14 +21,14 @@
 
 ## 预览
 
-![梁文峰谷图标](icon.png)
+![梁文谷图标](icon.png)
 
-![梁文峰谷宣传图](assets/演示素材.png)
+![梁文谷宣传图](assets/演示素材v2.png)
 
 ## 安装到本机 DSH
 
 ```bash
-cd liangwenfeng-gu
+cd liangwengu
 ./install-real-profile.sh
 ```
 

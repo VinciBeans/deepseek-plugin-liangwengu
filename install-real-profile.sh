@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Install 梁文峰谷 into the REAL web profile (~/.dsh/profiles/web).
+# Install 梁文谷 into the REAL web profile (~/.dsh/profiles/web).
 #
 # Notes:
 #  - Takes effect only after the running 'dsh web' GUI is restarted
@@ -11,7 +11,7 @@ set -euo pipefail
 
 PLUGIN_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROFILE_DIR="$HOME/.dsh/profiles/web"
-ENTRY_ID="梁文峰谷"
+ENTRY_ID="梁文谷"
 
 if [ ! -d "$PLUGIN_DIR" ]; then
   echo "plugin source not found: $PLUGIN_DIR" >&2
@@ -35,8 +35,8 @@ else
   echo "==> appending $ENTRY_ID to $PATCH_FILE"
   cat >> "$PATCH_FILE" <<'PATCH'
 - insert:
-    - id: 梁文峰谷
-      name: 'liangwenfeng-gu'
+    - id: 梁文谷
+      name: 'liangwengu'
 PATCH
 fi
 

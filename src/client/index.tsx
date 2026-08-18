@@ -1,5 +1,5 @@
 /**
- * 梁文峰谷 — browser half.
+ * 梁文谷 — browser half.
  *
  * Renders a small badge at the top-right corner of the DeepSeek Harness Web
  * GUI showing the current official compute time-slot:
@@ -90,7 +90,7 @@ export function TimeSlotIndicator() {
   return (
     <div
       aria-live="polite"
-      className="dsh-liangwenfeng-gu"
+      className="dsh-liangwengu"
       style={{
         position: 'fixed',
         top: 12,
@@ -101,10 +101,10 @@ export function TimeSlotIndicator() {
         gap: 8,
         padding: '6px 12px',
         borderRadius: 999,
-        background: 'var(--lwfg-bg, #ffffff)',
-        border: '1px solid var(--lwfg-border, rgba(0,0,0,0.12))',
-        boxShadow: 'var(--lwfg-shadow, 0 2px 8px rgba(0,0,0,0.08))',
-        color: 'var(--lwfg-text, #222)',
+        background: 'var(--lwgu-bg, #ffffff)',
+        border: '1px solid var(--lwgu-border, rgba(0,0,0,0.12))',
+        boxShadow: 'var(--lwgu-shadow, 0 2px 8px rgba(0,0,0,0.08))',
+        color: 'var(--lwgu-text, #222)',
         fontSize: 13,
         lineHeight: '18px',
         fontWeight: 500,
@@ -114,21 +114,21 @@ export function TimeSlotIndicator() {
       }}
     >
       <style>{`
-        .dsh-liangwenfeng-gu {
-          --lwfg-bg: var(--dsw-alias-bg-elevated, #ffffff);
-          --lwfg-border: var(--dsw-alias-border-l1, rgba(0,0,0,0.12));
-          --lwfg-text: var(--dsw-alias-label-primary, #222);
-          --lwfg-shadow: 0 2px 8px rgba(0,0,0,0.08);
-          --lwfg-peak: var(--dsw-alias-status-success, #22c55e);
-          --lwfg-off: var(--dsw-alias-status-muted, #9ca3af);
+        .dsh-liangwengu {
+          --lwgu-bg: var(--dsw-alias-bg-elevated, #ffffff);
+          --lwgu-border: var(--dsw-alias-border-l1, rgba(0,0,0,0.12));
+          --lwgu-text: var(--dsw-alias-label-primary, #222);
+          --lwgu-shadow: 0 2px 8px rgba(0,0,0,0.08);
+          --lwgu-peak: var(--dsw-alias-status-success, #22c55e);
+          --lwgu-off: var(--dsw-alias-status-muted, #9ca3af);
         }
-        body[data-ds-dark-theme] .dsh-liangwenfeng-gu {
-          --lwfg-bg: #17181c;
-          --lwfg-border: rgba(255,255,255,0.14);
-          --lwfg-text: #e8e8ea;
-          --lwfg-shadow: 0 2px 12px rgba(0,0,0,0.5);
-          --lwfg-peak: #4ade80;
-          --lwfg-off: #71717a;
+        body[data-ds-dark-theme] .dsh-liangwengu {
+          --lwgu-bg: #17181c;
+          --lwgu-border: rgba(255,255,255,0.14);
+          --lwgu-text: #e8e8ea;
+          --lwgu-shadow: 0 2px 12px rgba(0,0,0,0.5);
+          --lwgu-peak: #4ade80;
+          --lwgu-off: #71717a;
         }
       `}</style>
       <span
@@ -138,8 +138,8 @@ export function TimeSlotIndicator() {
           borderRadius: '50%',
           flex: 'none',
           background: label.includes('梁文峰')
-            ? 'var(--lwfg-peak, #22c55e)'
-            : 'var(--lwfg-off, #9ca3af)',
+            ? 'var(--lwgu-peak, #22c55e)'
+            : 'var(--lwgu-off, #9ca3af)',
         }}
       />
       <span>{label}</span>
@@ -161,7 +161,7 @@ export const inject = ['slots']
 export function apply(ctx: ClientContext): void {
   ctx.slots.inject('shell.overlay', () => ctx.slots.register({
     name: 'shell.overlay',
-    id: '梁文峰谷',
+    id: '梁文谷',
     order: 9000,
   }, TimeSlotIndicator))
 }
