@@ -26,13 +26,7 @@
 
 ## 预览
 
-### 实际效果
-
 ![实际截图](assets/screenshot.png)
-
-### 宣传图
-
-![梁文谷宣传图](assets/演示素材v2.png)
 
 ## 时段规则（北京时间）
 
@@ -75,7 +69,7 @@ npm test                         # 时段/倒计时冒烟测试
 - 通过 `Intl.DateTimeFormat` 固定 `Asia/Shanghai` 获取北京时间（时/分/秒）与星期几，与浏览器所在的本地时区无关
 - 峰期 = 工作日 `09:00–12:00` 与 `14:00–18:00`；谷期为其余时间，并连续运行到下一个峰期开始
 - 角标通过 DSH 客户端的 `shell.overlay` 插槽注册，`pointer-events: none`，永不遮挡页面操作
-- 每秒对齐副边界刷新一次（`setTimeout` 随 Cordis 生命周期管理，插件卸载即清理）
+- 每秒对齐秒边界刷新一次（`setTimeout` 随 Cordis 生命周期管理，插件卸载即清理）
 
 ## 开源协议
 
