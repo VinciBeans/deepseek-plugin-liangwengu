@@ -6,8 +6,6 @@
 > 并且告诉你距离下一个时段还有多久。
 > 比闹钟准时，比老板还关心你什么时候该用便宜算力。
 
-![梁文谷图标](icon.png)
-
 **梁文谷** 是一个 [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/DeepSeek-Harness) 客户端插件：
 在 Web GUI 的右上角显示当前算力错峰时段角标，并在标签下方**实时倒计时**当前峰/谷期的剩余时间。
 
