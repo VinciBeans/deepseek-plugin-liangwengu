@@ -9,6 +9,7 @@
  */
 import { build } from 'esbuild'
 import { mkdir } from 'node:fs/promises'
+import { spawnSync } from 'node:child_process'
 
 const ID = 'liangwengu'
 
@@ -42,4 +43,9 @@ await build({
   logLevel: 'info',
 })
 
-console.log('build complete: lib/index.js + lib/client.js')
+// ── type declarations ─────────────────────────────────────────────────────
+// Emit .d.ts for both halves into lib/types (package.json `types` fields).
+const result = spawnSync('tsc', ['-p', 'tsconfig.build.json'], { stdio: 'inherit' })
+if (result.status !== 0) process.exit(result.status ?? 1)
+
+console.log('build complete: lib/index.js + lib/client.js + lib/types')
