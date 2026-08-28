@@ -19,11 +19,11 @@
 import { useEffect, useState } from 'react'
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 // Type-only: pull the `slots` service declaration (Context augmentation) from
-// ui-renderer and the SlotMap merge declaring 'shell.overlay' from ui-layout.
-// Both are erased before bundling — the browser bundle only requires the
-// baseline platform words (react / react/jsx-runtime).
+// ui-renderer and the SlotMap merges declaring the conversation header slots
+// (ui-conversation) used below. All are erased before bundling — the browser
+// bundle only requires the baseline platform words (react / react/jsx-runtime).
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
-import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
+import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 
 // ── time-slot logic ───────────────────────────────────────────────────────
 
@@ -152,7 +152,9 @@ export function formatCountdown(totalSeconds: number): string {
 // ── badge visual ──────────────────────────────────────────────────────────
 
 /**
- * The top-right badge. pointerEvents is disabled so it never blocks the app;
+ * The time-slot capsule, mounted inside the session header's utilities row —
+ * directly left of the export-session button (order: -1 < the button's 0).
+ * It is a normal in-flow element, so it never floats over or blocks any UI;
  * it ticks once per second (re-synced to the second boundary), so the
  * countdown is live and slot changes appear promptly.
  */
@@ -180,28 +182,22 @@ export function TimeSlotIndicator() {
 
   return (
     <div
-      aria-live="polite"
       className="dsh-liangwengu"
       style={{
-        position: 'fixed',
-        top: 12,
-        right: 16,
-        zIndex: 2000,
         display: 'flex',
+        flex: 'none',
         flexDirection: 'column',
         alignItems: 'flex-start',
-        gap: 2,
-        padding: '6px 12px',
+        gap: 1,
+        padding: '3px 10px',
         borderRadius: 14,
         background: 'var(--lwgu-bg, #ffffff)',
         border: '1px solid var(--lwgu-border, rgba(0,0,0,0.12))',
-        boxShadow: 'var(--lwgu-shadow, 0 2px 8px rgba(0,0,0,0.08))',
+        boxShadow: 'var(--lwgu-shadow, 0 1px 4px rgba(0,0,0,0.06))',
         color: 'var(--lwgu-text, #222)',
-        fontSize: 13,
-        lineHeight: '18px',
+        fontSize: 12,
+        lineHeight: '15px',
         fontWeight: 500,
-        pointerEvents: 'none',
-        userSelect: 'none',
         whiteSpace: 'nowrap',
       }}
     >
@@ -211,7 +207,7 @@ export function TimeSlotIndicator() {
           --lwgu-border: var(--dsw-alias-border-l1, rgba(0,0,0,0.12));
           --lwgu-text: var(--dsw-alias-label-primary, #222);
           --lwgu-sub: var(--dsw-alias-label-secondary, #8a8f99);
-          --lwgu-shadow: 0 2px 8px rgba(0,0,0,0.08);
+          --lwgu-shadow: 0 1px 4px rgba(0,0,0,0.06);
           --lwgu-peak: var(--dsw-alias-status-success, #22c55e);
           --lwgu-off: var(--dsw-alias-status-muted, #9ca3af);
         }
@@ -220,16 +216,33 @@ export function TimeSlotIndicator() {
           --lwgu-border: rgba(255,255,255,0.14);
           --lwgu-text: #e8e8ea;
           --lwgu-sub: #9aa0aa;
-          --lwgu-shadow: 0 2px 12px rgba(0,0,0,0.5);
+          --lwgu-shadow: 0 1px 6px rgba(0,0,0,0.5);
           --lwgu-peak: #4ade80;
           --lwgu-off: #71717a;
         }
       `}</style>
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 8 }}>
+      {/* Screen readers announce only the slot label, which changes solely at
+          slot boundaries — never the per-second countdown. */}
+      <span
+        aria-live="polite"
+        style={{
+          position: 'absolute',
+          width: 1,
+          height: 1,
+          margin: -1,
+          padding: 0,
+          overflow: 'hidden',
+          clip: 'rect(0 0 0 0)',
+          whiteSpace: 'nowrap',
+        }}
+      >
+        {label}
+      </span>
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
         <span
           style={{
-            width: 8,
-            height: 8,
+            width: 7,
+            height: 7,
             borderRadius: '50%',
             flex: 'none',
             background: label.includes('梁文峰')
@@ -241,9 +254,9 @@ export function TimeSlotIndicator() {
       </span>
       <span
         style={{
-          paddingLeft: 16,
-          fontSize: 11,
-          lineHeight: '14px',
+          paddingLeft: 13,
+          fontSize: 10,
+          lineHeight: '12px',
           color: 'var(--lwgu-sub, #8a8f99)',
           fontWeight: 400,
           fontVariantNumeric: 'tabular-nums',
@@ -261,15 +274,16 @@ export function TimeSlotIndicator() {
 export const inject = ['slots']
 
 /**
- * Register the badge into the frame-wide additive `shell.overlay` slot.
- * A high order keeps it above most floating surfaces, while pointer-events
- * remains off so it never intercepts clicks.
+ * Register the capsule into the session header's right-aligned utilities row,
+ * before (left of) the export-session button. `order: -1` sorts ahead of the
+ * button's default 0; being an in-flow list entry it never overlays or blocks
+ * any page control.
  * @param ctx - client root context.
  */
 export function apply(ctx: ClientContext): void {
-  ctx.slots.inject('shell.overlay', () => ctx.slots.register({
-    name: 'shell.overlay',
+  ctx.slots.inject('conversation.session.header.utilities', () => ctx.slots.register({
+    name: 'conversation.session.header.utilities',
     id: '梁文谷',
-    order: 9000,
+    order: -1,
   }, TimeSlotIndicator))
 }

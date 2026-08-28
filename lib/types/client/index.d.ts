@@ -29,7 +29,9 @@ export declare function getSlotRemaining(date: Date): number;
 /** Format a second countdown as HH:MM:SS, or `Xd HH:MM:SS` when ≥ 24h. */
 export declare function formatCountdown(totalSeconds: number): string;
 /**
- * The top-right badge. pointerEvents is disabled so it never blocks the app;
+ * The time-slot capsule, mounted inside the session header's utilities row —
+ * directly left of the export-session button (order: -1 < the button's 0).
+ * It is a normal in-flow element, so it never floats over or blocks any UI;
  * it ticks once per second (re-synced to the second boundary), so the
  * countdown is live and slot changes appear promptly.
  */
@@ -37,9 +39,10 @@ export declare function TimeSlotIndicator(): import("react/jsx-runtime").JSX.Ele
 /** Required services (cordis fiber inject): the slot registry. */
 export declare const inject: string[];
 /**
- * Register the badge into the frame-wide additive `shell.overlay` slot.
- * A high order keeps it above most floating surfaces, while pointer-events
- * remains off so it never intercepts clicks.
+ * Register the capsule into the session header's right-aligned utilities row,
+ * before (left of) the export-session button. `order: -1` sorts ahead of the
+ * button's default 0; being an in-flow list entry it never overlays or blocks
+ * any page control.
  * @param ctx - client root context.
  */
 export declare function apply(ctx: ClientContext): void;

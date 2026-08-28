@@ -1,13 +1,13 @@
 # 梁文谷
 
 > 一个会看时间的 DSH 插件。
-> 它蹲在屏幕右上角，帮你盯住 DeepSeek 算力错峰时段：
+> 它蹲在会话标题栏的导出按钮旁边，帮你盯住 DeepSeek 算力错峰时段：
 > 梁文峰上班时它喊「梁文峰」，梁文峰下班、或者到了周末，它立刻改口「梁文谷」，
 > 并且告诉你距离下一个时段还有多久。
 > 比闹钟准时，比老板还关心你什么时候该用便宜算力。
 
 **梁文谷** 是一个 [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/DeepSeek-Harness) 客户端插件：
-在 Web GUI 的右上角显示当前算力错峰时段角标，并在标签下方**实时倒计时**当前峰/谷期的剩余时间。
+在会话标题栏右侧（日志导出按钮左侧）显示当前算力错峰时段胶囊，并在标签下方**实时倒计时**当前峰/谷期的剩余时间。胶囊是标题栏内的流内元素，不浮层、不遮挡任何控件；无会话时随标题栏一起隐藏。
 
 > 兼容目标：**dsh-0.1.2-alpha.1**（0.1.2-alpha.1 移除了 `@deepseek-ai/dsh-client-runtime`，
 > 客户端插件上下文统一为 `@deepseek-ai/cordis` 的 `Context`；本插件已按新 API 迁移）。
@@ -24,6 +24,7 @@
 - 使用 `Asia/Shanghai` 固定计算北京时间，不跟你浏览器的时区玩猜谜
 - 时段边界自动切换，无需手动刷新页面
 - 支持夜间模式，跟随 DSH 主题自动切换配色
+- 胶囊位于会话标题栏 utilities 行（导出按钮左侧），随标题栏显示/隐藏
 
 ## 预览
 
@@ -63,7 +64,7 @@ npm test                         # 时段/倒计时冒烟测试
 ```
 
 类型依赖说明：插件用到的客户端类型（`@deepseek-ai/cordis` 的 `Context`、
-`@deepseek-ai/dsh-client-ui-layout/client` 的 `shell.overlay` 槽位声明、
+`@deepseek-ai/dsh-client-ui-conversation/client` 的会话标题栏槽位声明、
 `@deepseek-ai/dsh-client-ui-renderer/client` 的 `slots` 服务声明）在 dsh-0.1.2-alpha.1
 发布前尚未推送到 npm，因此 `package.json` 里以 `file:../../deepseek-harness/packages/client/...`
 指向本地 DSH 仓库检出（该检出需已执行过 `pnpm build:lib:client` 生成 `lib/types`）。
@@ -78,7 +79,8 @@ npm test                         # 时段/倒计时冒烟测试
 
 - 通过 `Intl.DateTimeFormat` 固定 `Asia/Shanghai` 获取北京时间（时/分/秒）与星期几，与浏览器所在的本地时区无关
 - 峰期 = 工作日 `09:00–12:00` 与 `14:00–18:00`；谷期为其余时间，并连续运行到下一个峰期开始
-- 角标通过 DSH 客户端的 `shell.overlay` 插槽注册，`pointer-events: none`，永不遮挡页面操作
+- 胶囊注册在 DSH 客户端的 `conversation.session.header.utilities` 槽位（`order: -1`，
+  位于导出按钮左侧），是标题栏内的流内元素，不浮层、不遮挡任何页面操作
 - 每秒对齐秒边界刷新一次（`setTimeout` 随 Cordis 生命周期管理，插件卸载即清理）
 
 ## 开源协议
