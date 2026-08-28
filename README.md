@@ -9,6 +9,9 @@
 **梁文谷** 是一个 [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/DeepSeek-Harness) 客户端插件：
 在 Web GUI 的右上角显示当前算力错峰时段角标，并在标签下方**实时倒计时**当前峰/谷期的剩余时间。
 
+> 兼容目标：**dsh-0.1.2-alpha.1**（0.1.2-alpha.1 移除了 `@deepseek-ai/dsh-client-runtime`，
+> 客户端插件上下文统一为 `@deepseek-ai/cordis` 的 `Context`；本插件已按新 API 迁移）。
+
 它不会打扰你，不会抢焦点，也不会偷偷用你的算力写小说。它只是安静地做一个时间提示器。
 
 ## 功能
@@ -53,11 +56,20 @@ cd liangwengu
 ## 开发
 
 ```bash
-npm install --legacy-peer-deps   # -rc 依赖链存在 peer 冲突，需使用 legacy 模式
+npm install --legacy-peer-deps   # 类型依赖指向本地 DSH 源码，见下
 npm run typecheck                # tsc --noEmit
 npm run build                    # 生成 lib/ 构建产物（含 lib/types 类型声明）
 npm test                         # 时段/倒计时冒烟测试
 ```
+
+类型依赖说明：插件用到的客户端类型（`@deepseek-ai/cordis` 的 `Context`、
+`@deepseek-ai/dsh-client-ui-layout/client` 的 `shell.overlay` 槽位声明、
+`@deepseek-ai/dsh-client-ui-renderer/client` 的 `slots` 服务声明）在 dsh-0.1.2-alpha.1
+发布前尚未推送到 npm，因此 `package.json` 里以 `file:../../deepseek-harness/packages/client/...`
+指向本地 DSH 仓库检出（该检出需已执行过 `pnpm build:lib:client` 生成 `lib/types`）。
+注意 `file:` 依赖是**安装时拷贝**语义：harness 检出更新后，需重新执行
+`npm install --legacy-peer-deps` 才能拿到新类型（本地开发也可改用 pnpm `link:` 获得实时同步）。
+待 0.1.2-alpha.1 系列包发布到 npm 后，把这几项改回 `"^0.1.2-alpha.1"` 即可。
 
 仓库中直接提供 `lib/` 构建产物（`main`/`exports` 指向 `lib/`），克隆后即可安装使用；
 修改 `src/` 后重新构建即可。

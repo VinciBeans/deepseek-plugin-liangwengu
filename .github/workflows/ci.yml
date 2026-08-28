@@ -12,9 +12,31 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # The type-only dev dependencies (@deepseek-ai/dsh-client-ui-*,
+      # @deepseek-ai/dsh-client-store) track the dsh-0.1.2-alpha.1 API, which
+      # is not yet published to npm, so package.json resolves them with
+      # file:../../deepseek-harness/... — the harness checkout below must live
+      # at that sibling path (two levels up, i.e. $RUNNER_WORKSPACE) and carry
+      # built lib/types artifacts.
+      # Once 0.1.2-alpha.1 reaches the registry, switch those entries back to
+      # "^0.1.2-alpha.1" and delete this step.
+      - name: Checkout DeepSeek-Harness (dsh-v0.1.2-alpha.1)
+        run: |
+          git clone --depth 1 --branch dsh-v0.1.2-alpha.1 \
+            https://github.com/deepseek-ai/DeepSeek-Harness.git ../../deepseek-harness
+          # Pin the tag to the exact release commit; fail loud if it moved.
+          test "$(git -C ../../deepseek-harness rev-parse HEAD)" = "cd5ef8148158c3a752a658978873241fdf8e2bbc"
+
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+
+      - name: Build harness client type artifacts
+        working-directory: ../../deepseek-harness
+        run: |
+          corepack enable
+          pnpm install --frozen-lockfile
+          pnpm exec tsc -b packages/client/ui-layout packages/client/ui-renderer packages/client/ui-slots packages/client/store
 
       - name: Install dependencies
         run: npm install --legacy-peer-deps

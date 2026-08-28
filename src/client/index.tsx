@@ -17,8 +17,12 @@
  * reload.
  */
 import { useEffect, useState } from 'react'
-import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
-// Type-only: pull the SlotMap merge declaring 'shell.overlay' from ui-layout.
+import type { Context as ClientContext } from '@deepseek-ai/cordis'
+// Type-only: pull the `slots` service declaration (Context augmentation) from
+// ui-renderer and the SlotMap merge declaring 'shell.overlay' from ui-layout.
+// Both are erased before bundling — the browser bundle only requires the
+// baseline platform words (react / react/jsx-runtime).
+import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-layout/client'
 
 // ── time-slot logic ───────────────────────────────────────────────────────

@@ -1,4 +1,4 @@
-import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client';
+import type { Context as ClientContext } from '@deepseek-ai/cordis';
 /**
  * Beijing weekday: 0 = Sunday ... 6 = Saturday. Weekends (Sat/Sun) are
  * off-peak valley all day; workdays keep the original peak schedule.
