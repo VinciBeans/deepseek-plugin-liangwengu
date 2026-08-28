@@ -31,12 +31,22 @@ jobs:
         with:
           node-version: 22
 
-      - name: Build harness client type artifacts
+      - name: Build harness lib (client type artifacts + /remote declarations)
         working-directory: ../../deepseek-harness
+        # The plugin only type-imports the harness (react is the sole runtime
+        # dependency), so all it needs are the built .d.ts artifacts. Those do
+        # not come from `tsc -b` alone: the `./remote` export of each api package
+        # resolves to lib/typert.remote-client.d.ts, which is ONLY emitted by
+        # the typert generator during the tsdown host pass. A bare
+        # `tsc -b <client package>` therefore fails with "Cannot find module
+        # .../remote" (and the cascading `result.value is unknown` / "Property
+        # 'session' does not exist" errors). `pnpm run build:lib` is the
+        # canonical harness build: host tsc + host tsdown (generates /remote)
+        # then client tsc + client tsdown (all client lib/types).
         run: |
           corepack enable
           pnpm install --frozen-lockfile
-          pnpm exec tsc -b packages/client/ui-layout packages/client/ui-renderer packages/client/ui-slots packages/client/store
+          pnpm run build:lib
 
       - name: Install dependencies
         run: npm install --legacy-peer-deps

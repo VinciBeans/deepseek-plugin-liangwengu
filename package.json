@@ -17,6 +17,9 @@
     },
     "./package.json": "./package.json"
   },
+  "files": [
+    "lib"
+  ],
   "dsh": {
     "client": {
       "platform": "web"
