@@ -1,0 +1,8 @@
+# dsh 组合包层（bundle layer）：把梁文谷插入 web 配置树。
+#
+# 行里的 `name` 必须是包名（而非源码相对路径）；dsh 的 client-modules 节点半部
+# 扫描到这一行，读到 dsh.client 声明后，把浏览器 bundle 作为模块挂到
+# /plugins/liangwengu/client.js。
+- insert:
+    - id: '梁文谷'
+      name: 'liangwengu'
