@@ -33,6 +33,7 @@
   },
   "scripts": {
     "build": "node scripts/build.mjs",
+    "prepublishOnly": "node scripts/build.mjs",
     "typecheck": "tsc --noEmit",
     "test": "node test/time-slot.test.mjs"
   },
