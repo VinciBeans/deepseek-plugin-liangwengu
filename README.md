@@ -1,88 +1,59 @@
+<div align="center">
+
 # 梁文谷
 
-> 一个会看时间的 DSH 插件。
-> 它蹲在会话标题栏的导出按钮旁边，帮你盯住 DeepSeek 算力错峰时段：
-> 梁文峰上班时它喊「梁文峰」，梁文峰下班、或者到了周末，它立刻改口「梁文谷」，
-> 并且告诉你距离下一个时段还有多久。
-> 比闹钟准时，比老板还关心你什么时候该用便宜算力。
+**在 DeepSeek Harness 里显示当前算力错峰时段，并实时倒计时剩余时间**
 
-**梁文谷** 是一个 [DeepSeek Harness (DSH)](https://github.com/deepseek-ai/DeepSeek-Harness) 客户端插件：
-在会话标题栏右侧（日志导出按钮左侧）显示当前算力错峰时段胶囊，并在标签下方**实时倒计时**该时段的剩余时间。胶囊是标题栏内的流内元素，不浮层、不遮挡任何控件；无会话时随标题栏一起隐藏。
+装上它，会话窗口会显示现在该用梁文峰还是梁文谷，以及距离切换便宜算力时段还剩多久。
 
-> 兼容目标：**dsh-0.1.2-alpha.1**（0.1.2-alpha.1 移除了 `@deepseek-ai/dsh-client-runtime`，
-> 客户端插件上下文统一为 `@deepseek-ai/cordis` 的 `Context`；本插件已按新 API 迁移）。
+<p align="center">
+  <a href="https://www.npmjs.com/package/liangwengu">
+    <img src="https://img.shields.io/npm/v/liangwengu?style=flat&colorA=000000&colorB=000000" />
+  </a>
+  <a href="https://github.com/VinciBeans/deepseek-plugin-liangwengu/blob/main/LICENSE">
+    <img src="https://img.shields.io/github/license/VinciBeans/deepseek-plugin-liangwengu?style=flat&colorA=000000&colorB=000000" />
+  </a>
+</p>
 
-它不会打扰你，不会抢焦点，也不会偷偷用你的算力写小说。它只是安静地做一个时间提示器。
+</div>
 
-## 功能
+## Install
 
-- 工作日（周一至周五）`09:00–12:00` 与 `14:00–18:00`：显示 **当前时段：梁文峰**
-- 其余时间（含整个周末）：显示 **当前时段：梁文谷**
-- 标签下方实时显示当前时段（峰/谷）的**剩余时间倒计时**，每秒刷新，到点自动切换
-- **周末全天为低谷期**：谷期从周五 `18:00` 起连续运行到周一 `09:00` 峰期开始，倒计时跨天计算
-- 倒计时超过 24 小时时以 `X天 HH:MM:SS` 显示（周末谷期最长可达 63 小时）
-- 使用 `Asia/Shanghai` 固定计算北京时间，不跟你浏览器的时区玩猜谜
-- 时段边界自动切换，无需手动刷新页面
-- 支持夜间模式，跟随 DSH 主题自动切换配色
-- 胶囊位于会话标题栏 utilities 行（导出按钮左侧），随标题栏显示/隐藏
+```sh
+dsh plugin --profile web add liangwengu
+```
 
-## 预览
+需要已安装 DSH，并至少成功启动过一次 Web GUI。
 
-![实际截图](assets/screenshot.png)
+## Quickstart
 
-## 时段规则（北京时间）
+```sh
+dsh plugin --profile web add liangwengu
+dsh --profile web --dump-config          # 看到 liangwengu 层即安装成功
+# 重启 dsh web，打开会话，标题栏右侧出现时段胶囊
+```
+
+## 它能做什么
+
+- **当前时段:** 工作日 09:00–12:00 与 14:00–18:00 显示「梁文峰」，其余时间含整个周末显示「梁文谷」。
+- **实时倒计时:** 标签下方显示当前时段剩余时间，每秒刷新，到点自动切换。
+- **跨天谷期:** 周五 18:00 起连续到周一 09:00，最长 63 小时，超过 24 小时按天显示。
+- **固定北京时间:** 用 Asia/Shanghai 计算，与你浏览器所在时区无关。
+- **夜间模式:** 跟随 DSH 主题自动切换配色。
+
+## 显示规则
 
 | 日期 | 时段 | 显示 |
 | --- | --- | --- |
-| 周一 – 周五 | `09:00–12:00`、`14:00–18:00` | 梁文峰 |
-| 周一 – 周五 | 其余时间 | 梁文谷 |
+| 周一至周五 | 09:00–12:00、14:00–18:00 | 梁文峰 |
+| 周一至周五 | 其余时间 | 梁文谷 |
 | 周六、周日 | 全天 | 梁文谷 |
 
-工作日谷期倒计时到下一个峰期（当天 `14:00` 或次日 `09:00`）；
-周五 `18:00` 之后与整个周末的谷期连续到周一 `09:00` 峰期开始。
+## 兼容性
 
-## 安装到本机 DSH
+- **npm 正式版 0.1.1-rc.2:** 适配 npm 上的 dsh 0.1.1-rc.2（client-runtime 一代）。
+- **开发版 0.1.2-alpha.1:** main 分支，适配 dsh GitHub 最新版 0.1.2-alpha.1（cordis-Context 一代）。
 
-前置条件：已安装 DSH，并至少成功启动过一次 Web GUI（生成 `~/.dsh/profiles/web`）。
+## License
 
-```bash
-cd liangwengu
-./install-real-profile.sh
-```
-
-脚本会把插件以 `link:` 方式加入 `~/.dsh/profiles/web`，并在 `cordis.patch.yml` 中追加插件条目（不会覆盖已有的配置）。重启 `dsh web` 后生效。
-
-> Windows 下也支持：Git Bash、MSYS2、Cygwin 或 WSL 均可运行安装脚本。
-
-## 开发
-
-```bash
-npm install --legacy-peer-deps   # 类型依赖指向本地 DSH 源码，见下
-npm run typecheck                # tsc --noEmit
-npm run build                    # 生成 lib/ 构建产物（含 lib/types 类型声明）
-npm test                         # 时段/倒计时冒烟测试
-```
-
-类型依赖说明：插件用到的客户端类型（`@deepseek-ai/cordis` 的 `Context`、
-`@deepseek-ai/dsh-client-ui-conversation/client` 的会话标题栏槽位声明、
-`@deepseek-ai/dsh-client-ui-renderer/client` 的 `slots` 服务声明）在 dsh-0.1.2-alpha.1
-发布前尚未推送到 npm，因此 `package.json` 里以 `file:../../deepseek-harness/packages/client/...`
-指向本地 DSH 仓库检出（该检出需已执行过 `pnpm build:lib:client` 生成 `lib/types`）。
-注意 `file:` 依赖是**安装时拷贝**语义：harness 检出更新后，需重新执行
-`npm install --legacy-peer-deps` 才能拿到新类型（本地开发也可改用 pnpm `link:` 获得实时同步）。
-待 0.1.2-alpha.1 系列包发布到 npm 后，把这几项改回 `"^0.1.2-alpha.1"` 即可。
-
-仓库中直接提供 `lib/` 构建产物（`main`/`exports` 指向 `lib/`），克隆后即可安装使用；
-修改 `src/` 后重新构建即可。
-
-## 工作原理
-
-- 用固定的 `UTC+8`（`Asia/Shanghai` 自 1991 年起无夏令时）做纯算术得到北京时间的时/分/秒与星期几，与浏览器所在的本地时区无关
-- 峰期 = 工作日 `09:00–12:00` 与 `14:00–18:00`；谷期为其余时间，并连续运行到下一个峰期开始
-- 胶囊注册在 DSH 客户端的 `conversation.session.header.utilities` 槽位（`order: -1`，
-  位于导出按钮左侧），是标题栏内的流内元素，不浮层、不遮挡任何页面操作
-- 每秒对齐秒边界刷新一次（`setTimeout` 随 Cordis 生命周期管理，插件卸载即清理）
-
-## 开源协议
-
-本项目使用 [MIT](LICENSE) 协议开源。欢迎提 issue、提 PR、或者给它写一首诗。
+MIT
