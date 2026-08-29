@@ -58,39 +58,22 @@ export function getBeijingWeekday(date: Date): number {
 
 /**
  * Get the current Beijing wall-clock time as seconds since midnight.
- * Uses Intl with the fixed Asia/Shanghai timezone so the badge is correct
- * even when the browser is running in another timezone.
+ * Asia/Shanghai is a fixed UTC+8 (no DST since 1991), so this is pure
+ * arithmetic on the epoch ms — no Intl formatter per tick, and it stays
+ * correct regardless of the browser's own timezone.
  */
 export function getBeijingSeconds(date: Date): number {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: 'Asia/Shanghai',
-    hour: '2-digit',
-    minute: '2-digit',
-    second: '2-digit',
-    hourCycle: 'h23',
-  }).formatToParts(date)
-
-  let hour = 0
-  let minute = 0
-  let second = 0
-  for (const part of parts) {
-    if (part.type === 'hour') hour = Number(part.value)
-    else if (part.type === 'minute') minute = Number(part.value)
-    else if (part.type === 'second') second = Number(part.value)
-  }
-  return hour * 3600 + minute * 60 + second
+  const ms = date.getTime() + BEIJING_OFFSET_MS
+  return Math.floor((ms % DAY_MS) / 1000)
 }
 
-/**
- * Get the current Beijing wall-clock time in minutes since midnight.
- * Derived from {@link getBeijingSeconds} so both views share one clock.
- */
-export function getBeijingMinutes(date: Date): number {
+/** Minutes since Beijing midnight, on the same wall clock as {@link getBeijingSeconds}. */
+function getBeijingMinutes(date: Date): number {
   return Math.floor(getBeijingSeconds(date) / 60)
 }
 
 /** Whether the instant falls in a peak slot (workday 09:00–12:00 / 14:00–18:00). */
-export function isPeakMoment(date: Date): boolean {
+function isPeakMoment(date: Date): boolean {
   const weekday = getBeijingWeekday(date)
   if (weekday === 0 || weekday === 6) return false
   const minutes = getBeijingMinutes(date)
@@ -114,8 +97,8 @@ function getNextPeakStartMs(date: Date): number {
   for (let offset = 0; offset < 8; offset += 1) {
     const weekday = (dayIndex + offset + 4) % 7
     if (weekday === 0 || weekday === 6) continue
-    for (const hour of [9, 14]) {
-      const candidate = dayStartMs + offset * DAY_MS + hour * 3600 * 1000
+    for (const [start] of PEAK_SLOTS) {
+      const candidate = dayStartMs + offset * DAY_MS + start * 60 * 1000
       if (candidate > ms) return candidate
     }
   }

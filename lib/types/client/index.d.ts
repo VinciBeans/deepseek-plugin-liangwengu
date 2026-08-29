@@ -6,17 +6,11 @@ import type { Context as ClientContext } from '@deepseek-ai/cordis';
 export declare function getBeijingWeekday(date: Date): number;
 /**
  * Get the current Beijing wall-clock time as seconds since midnight.
- * Uses Intl with the fixed Asia/Shanghai timezone so the badge is correct
- * even when the browser is running in another timezone.
+ * Asia/Shanghai is a fixed UTC+8 (no DST since 1991), so this is pure
+ * arithmetic on the epoch ms — no Intl formatter per tick, and it stays
+ * correct regardless of the browser's own timezone.
  */
 export declare function getBeijingSeconds(date: Date): number;
-/**
- * Get the current Beijing wall-clock time in minutes since midnight.
- * Derived from {@link getBeijingSeconds} so both views share one clock.
- */
-export declare function getBeijingMinutes(date: Date): number;
-/** Whether the instant falls in a peak slot (workday 09:00–12:00 / 14:00–18:00). */
-export declare function isPeakMoment(date: Date): boolean;
 /** Return the badge text for a given instant. */
 export declare function getSlotLabel(date: Date): string;
 /**
