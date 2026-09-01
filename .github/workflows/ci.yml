@@ -9,23 +9,33 @@ on:
 jobs:
   build-test:
     runs-on: ubuntu-latest
+    # 多版本兼容矩阵：对 dsh-v0.1.2-alpha.1 / alpha.2 / alpha.3 各验一遍
+    # typecheck + build + test（契约面三版一致，但分别验证才能守住承诺）。
+    strategy:
+      fail-fast: false
+      matrix:
+        harness:
+          - tag: dsh-v0.1.2-alpha.1
+            pin: cd5ef8148158c3a752a658978873241fdf8e2bbc
+          - tag: dsh-v0.1.2-alpha.2
+            pin: 0a53fb55bea101816fa226bb964ae2bed71c343b
+          - tag: dsh-v0.1.2-alpha.3
+            pin: dd6322d604e00eec1ba5e0c8541159906a21094a
     steps:
       - uses: actions/checkout@v4
 
-      # The type-only dev dependencies (@deepseek-ai/dsh-client-ui-*,
-      # @deepseek-ai/dsh-client-store) track the dsh-0.1.2-alpha.1 API, which
-      # is not yet published to npm, so package.json resolves them with
-      # file:../../deepseek-harness/... — the harness checkout below must live
-      # at that sibling path (two levels up, i.e. $RUNNER_WORKSPACE) and carry
-      # built lib/types artifacts.
-      # Once 0.1.2-alpha.1 reaches the registry, switch those entries back to
-      # "^0.1.2-alpha.1" and delete this step.
-      - name: Checkout DeepSeek-Harness (dsh-v0.1.2-alpha.1)
+      # type-only 开发依赖（@deepseek-ai/dsh-client-ui-*、@deepseek-ai/dsh-client-store）
+      # 用 file:../../deepseek-harness/... 指向下方检出（两个上级目录，即
+      # $RUNNER_WORKSPACE），必须携带已构建的 lib/types 产物；tsconfig 的
+      # paths 把 @deepseek-ai/cordis 固定到本包安装的拷贝，因此类型增广
+      # 的模块身份不依赖 harness 的 vendor 布局。
+      # 待 0.1.2-alpha.1 系列包发布后，可把这些条目改回 npm 版本并简化矩阵。
+      - name: Checkout DeepSeek-Harness (${{ matrix.harness.tag }})
         run: |
-          git clone --depth 1 --branch dsh-v0.1.2-alpha.1 \
+          git clone --depth 1 --branch ${{ matrix.harness.tag }} \
             https://github.com/deepseek-ai/DeepSeek-Harness.git ../../deepseek-harness
           # Pin the tag to the exact release commit; fail loud if it moved.
-          test "$(git -C ../../deepseek-harness rev-parse HEAD)" = "cd5ef8148158c3a752a658978873241fdf8e2bbc"
+          test "$(git -C ../../deepseek-harness rev-parse HEAD)" = "${{ matrix.harness.pin }}"
 
       - uses: actions/setup-node@v4
         with:
@@ -33,16 +43,10 @@ jobs:
 
       - name: Build harness lib (client type artifacts + /remote declarations)
         working-directory: ../../deepseek-harness
-        # The plugin only type-imports the harness (react is the sole runtime
-        # dependency), so all it needs are the built .d.ts artifacts. Those do
-        # not come from `tsc -b` alone: the `./remote` export of each api package
-        # resolves to lib/typert.remote-client.d.ts, which is ONLY emitted by
-        # the typert generator during the tsdown host pass. A bare
-        # `tsc -b <client package>` therefore fails with "Cannot find module
-        # .../remote" (and the cascading `result.value is unknown` / "Property
-        # 'session' does not exist" errors). `pnpm run build:lib` is the
-        # canonical harness build: host tsc + host tsdown (generates /remote)
-        # then client tsc + client tsdown (all client lib/types).
+        # 插件只 type-import harness（react 是唯一运行时依赖），需要的是
+        # 已构建的 .d.ts 产物。`./remote` 导出只由 tsdown host pass 的
+        # typert generator 产出，`pnpm run build:lib` 是规范构建：host tsc
+        # + host tsdown，随后 client tsc + client tsdown（全部客户端 lib/types）。
         run: |
           corepack enable
           pnpm install --frozen-lockfile

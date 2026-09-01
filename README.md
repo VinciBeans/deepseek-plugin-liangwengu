@@ -51,8 +51,11 @@ dsh --profile web --dump-config          # 看到 liangwengu 层即安装成功
 
 ## 兼容性
 
-- **npm 正式版 0.1.1-rc.2:** 适配 npm 上的 dsh 0.1.1-rc.2（client-runtime 一代）。
-- **开发版 0.1.2-alpha.1:** main 分支，适配 dsh GitHub 最新版 0.1.2-alpha.1（cordis-Context 一代）。
+- **dsh v0.1.2-alpha.1 ~ alpha.3（支持）:** 本插件面向 `dsh-v0.1.2-alpha.1`、`dsh-v0.1.2-alpha.2`、`dsh-v0.1.2-alpha.3` 三个 tag 共同的客户端插件契约构建——`dsh.client` 声明、`window.__ModuleLoader__.load({ id, factory })` 形状、`ctx.slots.inject / register` 注册面、会话标题栏 `conversation.session.header.utilities` 槽位与平台 seed 表（react）三个版本上逐字一致。CI 在这三个 tag 上分别执行 typecheck + build + test（见 `.github/workflows/ci.yml` 的矩阵）。
+- **0.1.1-rc.2 及更早（不支持）:** 该代使用 `@deepseek-ai/dsh-client-runtime`，客户端上下文契约不同（非 cordis `Context`），本插件不兼容。
+- 浏览器 bundle 运行时只 require `react` 与 `react/jsx-runtime`（均在平台 seed 表内），无其他运行时依赖；`@deepseek-ai/*` 全部为 type-only 引用，不在 bundle 中。
+
+验证：`pnpm run typecheck`（`ctx.slots` 增广经 tsconfig `paths` 固定到本包安装的 cordis 拷贝）、`pnpm test`（时段/倒计时逻辑冒烟）。
 
 ## License
 
