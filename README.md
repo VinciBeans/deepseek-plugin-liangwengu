@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="https://www.npmjs.com/package/liangwengu">
-    <img src="https://img.shields.io/npm/v/liangwengu?style=flat&colorA=000000&colorB=000000" />
+    <img src="https://img.shields.io/npm/v/liangwengu/alpha?style=flat&colorA=000000&colorB=000000" />
   </a>
   <a href="https://github.com/VinciBeans/deepseek-plugin-liangwengu/blob/main/LICENSE">
     <img src="https://img.shields.io/github/license/VinciBeans/deepseek-plugin-liangwengu?style=flat&colorA=000000&colorB=000000" />
@@ -19,17 +19,20 @@
 
 ## Install
 
+从 npm 安装（`alpha` dist-tag 指向 0.1.2-alpha.3，适配 dsh v0.1.2-alpha.1 ~ alpha.3）：
+
 ```sh
-dsh plugin --profile web add liangwengu
+dsh plugin --profile web add liangwengu@alpha
 ```
 
 需要已安装 DSH，并至少成功启动过一次 Web GUI。
-面向dsh 0.1.1-rc.2版本，0.1.2-alpha.*版本请使用源码安装。
+
+npm `latest`（0.1.1-rc.2）仍是旧 client-runtime 代，仅适配 dsh 0.1.1-rc.2；安装它的命令为 `dsh plugin --profile web add liangwengu`。源码安装：`dsh plugin --profile web add .`。
 
 ## Quickstart
 
 ```sh
-dsh plugin --profile web add liangwengu
+dsh plugin --profile web add liangwengu@alpha
 dsh --profile web --dump-config          # 看到 liangwengu 层即安装成功
 # 重启 dsh web，打开会话，标题栏右侧出现时段胶囊
 ```
