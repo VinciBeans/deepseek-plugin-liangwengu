@@ -19,18 +19,17 @@
 
 ## Install
 
-本仓库版本 `0.1.2-alpha.3` 适配 dsh v0.1.2-alpha.1 ~ alpha.3（见「兼容性」）。npm 上现有 `0.1.1-rc.2` 是旧 client-runtime 一代，与 alpha.1 及以上不兼容——从本目录安装源码版本：
-
 ```sh
-dsh plugin --profile web add .
+dsh plugin --profile web add liangwengu
 ```
 
 需要已安装 DSH，并至少成功启动过一次 Web GUI。
+面向dsh 0.1.1-rc.2版本，0.1.2-alpha.*版本请使用源码安装。
 
 ## Quickstart
 
 ```sh
-dsh plugin --profile web add .
+dsh plugin --profile web add liangwengu
 dsh --profile web --dump-config          # 看到 liangwengu 层即安装成功
 # 重启 dsh web，打开会话，标题栏右侧出现时段胶囊
 ```
