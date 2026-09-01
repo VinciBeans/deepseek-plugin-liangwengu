@@ -1,4 +1,8 @@
 {
+  // 把 @deepseek-ai/cordis 固定到本包安装的拷贝：不固定时，file:/junction
+  // 布局下 ui-renderer 的 d.ts 会把 cordis 解析到 harness vendor（lib/types
+  // 是未入库的构建产物），与插件 import 的 Context 分裂成两个模块身份，
+  // Context.slots 增广失效（TS2339）。详见 CONTRIBUTING.md「类型依赖说明」。
   "compilerOptions": {
     "target": "ES2022",
     "module": "ESNext",
