@@ -19,7 +19,7 @@
 
 ## Install
 
-从 npm 安装（`alpha` dist-tag；当前版本 0.1.2-alpha.4，适配 dsh v0.1.2-alpha.1 ~ alpha.4）：
+从 npm 安装（`alpha` dist-tag；当前版本 0.1.2-alpha.5，适配 dsh v0.1.2-alpha.1 ~ alpha.5）：
 
 ```sh
 dsh plugin --profile web add liangwengu@alpha
@@ -55,7 +55,7 @@ dsh --profile web --dump-config          # 看到 liangwengu 层即安装成功
 
 ## 兼容性
 
-- **dsh v0.1.2-alpha.1 ~ alpha.4（支持）:** 本插件面向 `dsh-v0.1.2-alpha.1` ~ `dsh-v0.1.2-alpha.4` 四个 tag 共同的客户端插件契约构建——`dsh.client` 声明、`window.__ModuleLoader__.load({ id, factory })` 形状、`ctx.slots.inject / register` 注册面、会话标题栏 `conversation.session.header.utilities` 槽位与平台 seed 表（react）四个版本上逐字一致（alpha.4 的模块系统仅版本号与 web 包 `./invariant` 导出清理，契约未变）。CI 在 alpha.1 ~ alpha.3 三个 tag 上分别执行 typecheck + build + test（见 `.github/workflows/ci.yml` 的矩阵）；alpha.4 已本地核对：对 alpha.4 构建的客户端类型产物执行 `tsc --noEmit` 通过。
+- **dsh v0.1.2-alpha.1 ~ alpha.5（支持）:** 本插件面向 `dsh-v0.1.2-alpha.1` ~ `dsh-v0.1.2-alpha.5` 五个 tag 共同的客户端插件契约构建——`dsh.client` 声明、`window.__ModuleLoader__.load({ id, factory })` 形状、`ctx.slots.inject / register` 注册面、会话标题栏 `conversation.session.header.utilities` 槽位与平台 seed 表（react）五个版本上逐字一致（alpha.4 / alpha.5 的模块系统仅版本号与 web 包 `./invariant` 导出清理，契约未变）。CI 在 alpha.1 ~ alpha.5 五个 tag 上分别执行 typecheck + build + test（见 `.github/workflows/ci.yml` 的矩阵）。仓库 master HEAD（`dsh-v0.1.2-alpha.5` 之后 38 个提交、package 版本仍为 alpha.5）亦已核对：插件消费的契约面零差异（`ui-chat` 仅将 `loadImage` 下传至 `chat.node` owner 并新增 `tool.call.images` 槽位），对 HEAD 构建的客户端类型产物执行 `tsc --noEmit` 通过。
 - **0.1.1-rc.2 及更早（不支持）:** 该代使用 `@deepseek-ai/dsh-client-runtime`，客户端上下文契约不同（非 cordis `Context`），本插件不兼容。
 - 浏览器 bundle 运行时只 require `react` 与 `react/jsx-runtime`（均在平台 seed 表内），无其他运行时依赖；`@deepseek-ai/*` 全部为 type-only 引用，不在 bundle 中。
 
