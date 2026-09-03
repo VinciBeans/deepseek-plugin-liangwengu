@@ -19,15 +19,22 @@
 
 ## Install
 
-从 npm 安装（`alpha` dist-tag；npm 版本 0.1.2-alpha.5，适配 dsh v0.1.2-alpha.1 ~ rc.1）：
+需要已安装 DSH，并至少成功启动过一次 Web GUI。从 npm 安装（按 dist-tag 选择）：
 
-```sh
-dsh plugin --profile web add liangwengu@alpha
-```
+1. **npm `latest`**（0.1.1-rc.2）— 兼容 dsh v0.1.1-rc.2（旧 client-runtime 代）：
+   ```sh
+   dsh plugin --profile web add liangwengu
+   ```
+2. **npm `next`**（0.1.2-rc.1）— 兼容 dsh v0.1.2-alpha.1 ~ rc.1：
+   ```sh
+   dsh plugin --profile web add liangwengu@next
+   ```
+3. **npm `alpha`**（0.1.2-alpha.5）— 兼容 dsh v0.1.2-alpha.1 ~ rc.1（与 `next` 同一契约代）：
+   ```sh
+   dsh plugin --profile web add liangwengu@alpha
+   ```
 
-需要已安装 DSH，并至少成功启动过一次 Web GUI。
-
-npm `latest`（0.1.1-rc.2）仍是旧 client-runtime 代，仅适配 dsh 0.1.1-rc.2；安装它的命令为 `dsh plugin --profile web add liangwengu`。源码安装（GitHub Release `v0.1.2-rc.1` 即当前源码版）：`dsh plugin --profile web add .`。
+源码安装（GitHub Release `v0.1.2-rc.1` 即当前源码版）：`dsh plugin --profile web add .`。
 
 ## Quickstart
 
