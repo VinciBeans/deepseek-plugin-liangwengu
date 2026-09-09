@@ -34,7 +34,7 @@ type IndicatorProps = PropsRuntime<'conversation.session.header.utilities'>;
  * price detail menu described in the module doc.
  * @param props - slot runtime props; only the projection hook is used.
  */
-export declare function TimeSlotIndicator({ useProjection }: IndicatorProps): import("react/jsx-runtime").JSX.Element;
+export declare function TimeSlotIndicator({ useProjection, sessionId }: IndicatorProps): import("react/jsx-runtime").JSX.Element;
 export { activeRevision, cacheHitRate, compositePerYiTokens, costYuan, FLASH_PRICE_CHANGE_AT, formatBeijingDateTime, formatCompactTokens, formatHitRate, formatMoney, formatRate, lookupPricing, nextRevision, OFFICIAL_MODELS, PRICING_SOURCE_URL, PRICING_UPDATED_AT, rateAt, totalTokens, } from './pricing';
 /** Required services (cordis fiber inject): the slot registry. */
 export declare const inject: string[];

@@ -54,6 +54,7 @@ import {
   rateAt,
   totalTokens,
   type PriceTier,
+  type RateRevision,
 } from './pricing'
 
 // ── time-slot logic ───────────────────────────────────────────────────────
@@ -247,7 +248,7 @@ const STYLE = `
   }
   .dsh-lwgu-sr {
     position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
-    overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+    overflow: hidden; clip-path: inset(50%); white-space: nowrap;
   }
   .dsh-lwgu-panel {
     position: fixed; z-index: 2147483000; box-sizing: border-box; width: 300px;
@@ -287,6 +288,9 @@ const STYLE = `
   }
   .dsh-lwgu-composite-unit { color: var(--lwgu-sub); font-size: 11px; }
   .dsh-lwgu-note { margin-top: 6px; color: var(--lwgu-dim); font-size: 10px; line-height: 14px; }
+  @media (prefers-reduced-motion: reduce) {
+    .dsh-liangwengu { transition: none; }
+  }
 `
 
 /** Slot-supplied props: the session projection read seat. */
@@ -301,13 +305,16 @@ type IndicatorProps = PropsRuntime<'conversation.session.header.utilities'>
  * price detail menu described in the module doc.
  * @param props - slot runtime props; only the projection hook is used.
  */
-export function TimeSlotIndicator({ useProjection }: IndicatorProps) {
+export function TimeSlotIndicator({ useProjection, sessionId }: IndicatorProps) {
   const [now, setNow] = useState(() => new Date())
   const [open, setOpen] = useState(false)
   const [pickedModelId, setPickedModelId] = useState<string | null>(null)
   const [pos, setPos] = useState<{ left: number; top: number } | null>(null)
   const anchorRef = useRef<HTMLDivElement | null>(null)
   const panelRef = useRef<HTMLDivElement | null>(null)
+
+  // A pricing model picked for one Session must not leak into the next one.
+  useEffect(() => { setPickedModelId(null) }, [sessionId])
 
   useEffect(() => {
     let timer: number
@@ -393,14 +400,20 @@ export function TimeSlotIndicator({ useProjection }: IndicatorProps) {
   const sessionModelId = modelSelection?.next?.model ?? modelSelection?.lastUsed?.model ?? null
   const sessionPriced = lookupPricing(sessionModelId) !== undefined
   const activeModelId = pickedModelId
-    ?? (sessionPriced ? sessionModelId as string : OFFICIAL_MODELS[0]!.id)
-  const activeEntry = OFFICIAL_MODELS.find(entry => entry.id === activeModelId) ?? OFFICIAL_MODELS[0]!
+    ?? (sessionModelId !== null && sessionPriced ? sessionModelId : OFFICIAL_MODELS[0].id)
+  const activeEntry = OFFICIAL_MODELS.find(entry => entry.id === activeModelId) ?? OFFICIAL_MODELS[0]
   // Resolve the revision in force right now: a scheduled official price change
   // flips the menu by itself as the per-second tick re-renders.
   const at = now.getTime()
   const revision = activeRevision(activeEntry.pricing, at)
-  const upcoming = nextRevision(activeEntry.pricing, at)
   const rate = rateAt(activeEntry.pricing, at, tier)
+  // Every model with an announced change, grouped by the revision it moves to.
+  const upcomingGroups = new Map<RateRevision, string[]>()
+  for (const entry of OFFICIAL_MODELS) {
+    const nextRev = nextRevision(entry.pricing, at)
+    if (nextRev === undefined) continue
+    upcomingGroups.set(nextRev, [...(upcomingGroups.get(nextRev) ?? []), entry.pricing.name])
+  }
 
   const billed = usage !== undefined && totalTokens(usage) > 0
   const hit = usage === undefined ? null : cacheHitRate(usage)
@@ -478,13 +491,13 @@ export function TimeSlotIndicator({ useProjection }: IndicatorProps) {
               )
             })}
           </div>
-          {upcoming !== undefined && (
-            <div className="dsh-lwgu-note">
-              {formatBeijingDateTime(upcoming.effectiveFrom)} 起本模型调价：
-              命中 {formatRate(upcoming[tier].cacheHit)} / 未命中 {formatRate(upcoming[tier].cacheMiss)}
-              / 输出 {formatRate(upcoming[tier].output)}（{tierLabel(tier)}）
+          {[...upcomingGroups].map(([nextRev, names]) => (
+            <div className="dsh-lwgu-note" key={names[0]}>
+              {formatBeijingDateTime(nextRev.effectiveFrom)} 起 {names.join(' / ')} 调价：
+              命中 {formatRate(nextRev[tier].cacheHit)} / 未命中 {formatRate(nextRev[tier].cacheMiss)}
+              / 输出 {formatRate(nextRev[tier].output)}（{tierLabel(tier)}）
             </div>
-          )}
+          ))}
           <div className="dsh-lwgu-rule" />
           <div className="dsh-lwgu-head">
             <span className="dsh-lwgu-title">本会话综合单价</span>

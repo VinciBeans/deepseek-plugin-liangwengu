@@ -110,17 +110,25 @@ const useProjection = key => projections[key]
 const mounted = []
 
 /** Mount the badge at a frozen instant and return its DOM handles. */
-async function mount(epochMs) {
+async function mount(epochMs, sessionId = 'session-a') {
   installClock(epochMs)
   const container = document.createElement('div')
   document.body.appendChild(container)
   const root = createRoot(container)
-  root.render(react.createElement(plugin.TimeSlotIndicator, { useProjection }))
+  root.render(react.createElement(plugin.TimeSlotIndicator, { useProjection, sessionId }))
   await tick()
   mounted.push({ root, container })
   const button = container.querySelector('.dsh-liangwengu')
   assert.ok(button !== null, 'badge button rendered')
   return { root, container, button }
+}
+
+/** The menu row button whose first cell is exactly `name`. */
+function modelRow(name) {
+  const row = [...document.querySelectorAll('.dsh-lwgu-grid-row')]
+    .find(candidate => candidate.firstElementChild?.textContent === name)
+  assert.ok(row !== undefined, `menu row ${name} rendered`)
+  return row
 }
 
 const flash = plugin.lookupPricing('deepseek-v4-flash')
@@ -161,7 +169,7 @@ try {
       && text.includes('元 / 亿 tokens'),
       'menu shows the blended price for the pre-cut revision',
     )
-    assert.ok(text.includes('2026-09-10 12:00 起本模型调价'), 'menu announces the pending change')
+    assert.ok(text.includes('2026-09-10 12:00 起 V4-Flash / V4-Flash-Vision 调价'), 'menu announces the pending change for every affected model')
 
     // Outside pointerdown closes.
     const outside = document.createElement('button')
@@ -203,8 +211,26 @@ try {
     assert.ok(document.querySelector('.dsh-lwgu-panel') === null, 'Escape closes the menu')
   }
 
+  // ── scenario 3: a picked model resets when the Session changes ───────────
+  {
+    const at = cut + 3600_000
+    const { root, button } = await mount(at, 'session-a')
+    button.dispatchEvent(new window.MouseEvent('click', { bubbles: true }))
+    await tick()
+    const pro = modelRow('V4-Pro')
+    pro.dispatchEvent(new window.MouseEvent('click', { bubbles: true }))
+    await tick()
+    assert.ok(pro.getAttribute('aria-pressed') === 'true', 'picked model becomes the priced one')
+
+    root.render(react.createElement(plugin.TimeSlotIndicator, { useProjection, sessionId: 'session-b' }))
+    await tick()
+    assert.ok(modelRow('V4-Pro').getAttribute('aria-pressed') === 'false', 'picked model resets on Session change')
+    assert.ok(modelRow('V4-Flash').getAttribute('aria-pressed') === 'true', 'priced model falls back to the Session model')
+  }
+
   // ── artifact contracts ───────────────────────────────────────────────────
   assert.ok(bundleSource.includes('.dsh-liangwengu:hover'), 'bundle ships the hover deepening rule')
+  assert.ok(bundleSource.includes('prefers-reduced-motion'), 'bundle respects reduced motion')
   assert.ok(!bundleSource.includes('require("react-dom")'), 'bundle keeps react/react/jsx-runtime as its only externals')
 } finally {
   installClock(null)
@@ -215,5 +241,5 @@ try {
   dom.window.close()
 }
 
-console.log('menu test ok (pre-cut + post-cut render, open/outside-close/Escape, blended price)')
+console.log('menu test ok (pre-cut + post-cut render, open/outside-close/Escape, blended price, session-scoped picker reset)')
 clearTimeout(watchdog)

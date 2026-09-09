@@ -21,11 +21,11 @@ export type PriceTier = 'peak' | 'offPeak'
 /** One tier's rates, in 元 per million tokens. */
 export interface TierRate {
   /** Cached input (缓存命中). */
-  cacheHit: number
+  readonly cacheHit: number
   /** Uncached input (缓存未命中). */
-  cacheMiss: number
+  readonly cacheMiss: number
   /** Generated output (输出). */
-  output: number
+  readonly output: number
 }
 
 /** One dated revision of a model's rates. */
@@ -46,7 +46,15 @@ export interface ModelPricing {
   /** Short display name used in the menu. */
   name: string
   /** Revisions in ascending `effectiveFrom` order; the first covers all earlier instants. */
-  readonly revisions: readonly RateRevision[]
+  readonly revisions: readonly [RateRevision, ...RateRevision[]]
+}
+
+/** One entry of the embedded official table. */
+export interface OfficialModel {
+  /** Provider-owned model id. */
+  readonly id: string
+  /** Its price revisions. */
+  readonly pricing: ModelPricing
 }
 
 /** The official price page these rates were transcribed from. */
@@ -61,25 +69,30 @@ export const PRICING_UPDATED_AT = '2026-09-08'
  */
 export const FLASH_PRICE_CHANGE_AT = Date.UTC(2026, 8, 10, 4, 0, 0)
 
-/** Rates in force before {@link FLASH_PRICE_CHANGE_AT}. */
-const FLASH_BASE: RateRevision = {
-  effectiveFrom: 0,
-  offPeak: { cacheHit: 0.05, cacheMiss: 1.5, output: 4.5 },
-  peak: { cacheHit: 0.1, cacheMiss: 3, output: 9 },
+/** One frozen tier's rates. */
+function rate(cacheHit: number, cacheMiss: number, output: number): TierRate {
+  return Object.freeze({ cacheHit, cacheMiss, output })
 }
+
+/** Rates in force before {@link FLASH_PRICE_CHANGE_AT}. */
+const FLASH_BASE: RateRevision = Object.freeze({
+  effectiveFrom: 0,
+  offPeak: rate(0.05, 1.5, 4.5),
+  peak: rate(0.1, 3, 9),
+})
 
 /**
  * The announced flash-series cut: 空闲时段 命中 0.02 / 未命中 1 / 输出 4 元 per
  * million tokens, with 高峰时段 exactly twice that.
  */
-const FLASH_CUT: RateRevision = {
+const FLASH_CUT: RateRevision = Object.freeze({
   effectiveFrom: FLASH_PRICE_CHANGE_AT,
-  offPeak: { cacheHit: 0.02, cacheMiss: 1, output: 4 },
-  peak: { cacheHit: 0.04, cacheMiss: 2, output: 8 },
-}
+  offPeak: rate(0.02, 1, 4),
+  peak: rate(0.04, 2, 8),
+})
 
 /** The official table, in menu order. */
-export const OFFICIAL_MODELS: readonly { readonly id: string; readonly pricing: ModelPricing }[] = [
+export const OFFICIAL_MODELS: readonly [OfficialModel, ...OfficialModel[]] = [
   {
     id: 'deepseek-v4-flash',
     pricing: { name: 'V4-Flash', revisions: [FLASH_BASE, FLASH_CUT] },
@@ -90,12 +103,14 @@ export const OFFICIAL_MODELS: readonly { readonly id: string; readonly pricing: 
       name: 'V4-Pro',
       revisions: [{
         effectiveFrom: 0,
-        offPeak: { cacheHit: 0.15, cacheMiss: 4.5, output: 13.5 },
-        peak: { cacheHit: 0.3, cacheMiss: 9, output: 27 },
+        offPeak: rate(0.15, 4.5, 13.5),
+        peak: rate(0.3, 9, 27),
       }],
     },
   },
   {
+    // The notice says "flash 系列"; the official page prices this vision variant
+    // identically to deepseek-v4-flash, so it moves with the same revision.
     id: 'deepseek-v4-flash-vision-exp',
     pricing: { name: 'V4-Flash-Vision', revisions: [FLASH_BASE, FLASH_CUT] },
   },
@@ -119,7 +134,7 @@ export function lookupPricing(modelId: string | null | undefined): ModelPricing 
  * first revision when the instant predates every dated change.
  */
 export function activeRevision(pricing: ModelPricing, atMs: number): RateRevision {
-  let active = pricing.revisions[0]!
+  let active = pricing.revisions[0]
   for (const revision of pricing.revisions) {
     if (revision.effectiveFrom > atMs) break
     active = revision
@@ -201,13 +216,13 @@ export function cacheHitRate(buckets: TokenBuckets): number | null {
  * @returns the cost in 元.
  */
 export function costYuan(buckets: TokenBuckets, rate: TierRate): number {
-  const millionths = (
+  const cost = (
     buckets.uncachedInputTokens * rate.cacheMiss
     + buckets.cacheReadTokens * rate.cacheHit
     + buckets.cacheWriteTokens * rate.cacheMiss
     + buckets.outputTokens * rate.output
   ) / 1_000_000
-  return millionths
+  return cost
 }
 
 /**
@@ -248,10 +263,10 @@ export function formatCompactTokens(value: number): string {
 /**
  * Cache-hit percentage text, honest about near-full hits.
  * @param rate - 0–1 ratio from {@link cacheHitRate}.
- * @returns one-decimal percentage text.
+ * @returns one-decimal percentage text; a partial hit never rounds up to 100.
  */
 export function formatHitRate(rate: number): string {
   if (rate >= 1) return '100'
-  const tenths = Math.floor(rate * 1000)
+  const tenths = Math.min(999, Math.round(rate * 1000))
   return (tenths / 10).toFixed(1)
 }

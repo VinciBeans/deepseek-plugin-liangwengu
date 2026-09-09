@@ -156,6 +156,7 @@ assert.equal(formatCompactTokens(12_200), '12.2K')
 assert.equal(formatCompactTokens(517_000), '517K')
 assert.equal(formatCompactTokens(1_200_000), '1.2M')
 assert.equal(formatHitRate(0.9), '90.0')
+assert.equal(formatHitRate(0.99999), '99.9') // a partial hit must never read 100
 assert.equal(formatHitRate(1), '100')
 assert.equal(formatHitRate(0), '0.0')
 

@@ -19,11 +19,11 @@ export type PriceTier = 'peak' | 'offPeak';
 /** One tier's rates, in 元 per million tokens. */
 export interface TierRate {
     /** Cached input (缓存命中). */
-    cacheHit: number;
+    readonly cacheHit: number;
     /** Uncached input (缓存未命中). */
-    cacheMiss: number;
+    readonly cacheMiss: number;
     /** Generated output (输出). */
-    output: number;
+    readonly output: number;
 }
 /** One dated revision of a model's rates. */
 export interface RateRevision {
@@ -42,7 +42,14 @@ export interface ModelPricing {
     /** Short display name used in the menu. */
     name: string;
     /** Revisions in ascending `effectiveFrom` order; the first covers all earlier instants. */
-    readonly revisions: readonly RateRevision[];
+    readonly revisions: readonly [RateRevision, ...RateRevision[]];
+}
+/** One entry of the embedded official table. */
+export interface OfficialModel {
+    /** Provider-owned model id. */
+    readonly id: string;
+    /** Its price revisions. */
+    readonly pricing: ModelPricing;
 }
 /** The official price page these rates were transcribed from. */
 export declare const PRICING_SOURCE_URL = "https://api-docs.deepseek.com/zh-cn/quick_start/pricing";
@@ -54,10 +61,7 @@ export declare const PRICING_UPDATED_AT = "2026-09-08";
  */
 export declare const FLASH_PRICE_CHANGE_AT: number;
 /** The official table, in menu order. */
-export declare const OFFICIAL_MODELS: readonly {
-    readonly id: string;
-    readonly pricing: ModelPricing;
-}[];
+export declare const OFFICIAL_MODELS: readonly [OfficialModel, ...OfficialModel[]];
 /**
  * Look one model id up in the official table.
  * @param modelId - provider-owned model id.
@@ -141,6 +145,6 @@ export declare function formatCompactTokens(value: number): string;
 /**
  * Cache-hit percentage text, honest about near-full hits.
  * @param rate - 0–1 ratio from {@link cacheHitRate}.
- * @returns one-decimal percentage text.
+ * @returns one-decimal percentage text; a partial hit never rounds up to 100.
  */
 export declare function formatHitRate(rate: number): string;
