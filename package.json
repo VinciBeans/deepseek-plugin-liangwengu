@@ -32,7 +32,7 @@
     "build": "node scripts/build.mjs",
     "prepack": "npm run build",
     "typecheck": "tsc --noEmit",
-    "test": "node test/time-slot.test.mjs && node test/pricing.test.mjs"
+    "test": "node test/time-slot.test.mjs && node test/pricing.test.mjs && node test/menu.test.mjs"
   },
   "license": "MIT",
   "devDependencies": {
@@ -45,7 +45,9 @@
     "@deepseek-ai/dsh-token-meter": "file:../../deepseek-harness/packages/llm/token-meter",
     "@types/react": "18.3.24",
     "esbuild": "^0.25.0",
+    "jsdom": "^29.1.1",
     "react": "18.3.1",
+    "react-dom": "18.3.1",
     "typescript": "^5.7.2"
   },
   "keywords": [

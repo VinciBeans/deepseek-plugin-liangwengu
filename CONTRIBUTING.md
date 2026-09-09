@@ -8,8 +8,14 @@
 npm install --legacy-peer-deps
 npm run typecheck     # tsc --noEmit
 npm run build         # 生成 lib/index.js + lib/client.js + lib/types
-npm test              # 时段/倒计时冒烟测试
+npm test              # 三个测试串行执行，全部读构建产物 lib/client.js
 ```
+
+测试分层（都通过 `window.__ModuleLoader__` 加载已构建的 bundle，验的是发布产物）：
+
+- `test/time-slot.test.mjs` — 峰/谷判定、倒计时与剩余时间
+- `test/pricing.test.mjs` — 价目表数值、调价生效时刻取档、综合单价与格式化
+- `test/menu.test.mjs` — jsdom 里真实渲染组件：菜单展开/外部点击收起/Esc 收起，并在调价前后两个伪造时刻断言菜单显示对应档位（`react-dom` + `jsdom` 仅测试用）
 
 类型依赖说明：客户端类型（`@deepseek-ai/cordis` 的 `Context`、
 `@deepseek-ai/dsh-client-ui-conversation/client` 的会话标题栏槽位声明、
