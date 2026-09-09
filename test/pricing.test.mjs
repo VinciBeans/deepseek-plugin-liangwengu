@@ -32,8 +32,8 @@ await import(new URL('../lib/client.js', import.meta.url).href)
 const {
   OFFICIAL_MODELS, PRICING_SOURCE_URL, FLASH_PRICE_CHANGE_AT, lookupPricing,
   activeRevision, nextRevision, rateAt, formatBeijingDateTime, cacheHitRate,
-  costYuan, compositePerYiTokens, totalTokens, formatRate, formatYuanPerYi,
-  formatYuan, formatCompactTokens, formatHitRate,
+  costYuan, compositePerYiTokens, totalTokens, formatRate, formatMoney,
+  formatCompactTokens, formatHitRate,
 } = plugin
 
 // ── the embedded table matches the official price page ─────────────────────
@@ -149,8 +149,8 @@ assert.equal(formatRate(1.5), '1.5')
 assert.equal(formatRate(4), '4')
 assert.equal(formatRate(13.5), '13.5')
 assert.equal(formatRate(27), '27')
-assert.equal(formatYuanPerYi(47.09090), '47.09')
-assert.equal(formatYuan(5.18), '5.18')
+assert.equal(formatMoney(47.09090), '47.09')
+assert.equal(formatMoney(5.18), '5.18')
 assert.equal(formatCompactTokens(517), '517')
 assert.equal(formatCompactTokens(12_200), '12.2K')
 assert.equal(formatCompactTokens(517_000), '517K')

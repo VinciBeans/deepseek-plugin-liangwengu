@@ -149,7 +149,7 @@ export function rateAt(pricing: ModelPricing, atMs: number, tier: PriceTier): Ti
 }
 
 /** Beijing offset in ms: Asia/Shanghai is fixed at UTC+8 (no DST since 1991). */
-const BEIJING_OFFSET_MS = 8 * 3600 * 1000
+export const BEIJING_OFFSET_MS = 8 * 3600 * 1000
 
 /**
  * Format an instant as Beijing `YYYY-MM-DD HH:MM`.
@@ -231,13 +231,8 @@ export function formatRate(value: number): string {
   return value < 1 ? value.toFixed(2) : String(Math.round(value * 10) / 10)
 }
 
-/** Blended unit price text: always two decimals. */
-export function formatYuanPerYi(value: number): string {
-  return value.toFixed(2)
-}
-
-/** Money text: two decimals, no currency symbol. */
-export function formatYuan(value: number): string {
+/** Money text: two decimals, no currency symbol (元, or 元/亿 tokens for the blended price). */
+export function formatMoney(value: number): string {
   return value.toFixed(2)
 }
 
@@ -248,11 +243,6 @@ export function formatCompactTokens(value: number): string {
     candidate >= 100 ? String(Math.round(candidate)) : String(Math.round(candidate * 10) / 10)
   if (value < 1_000_000) return `${scaled(value / 1_000)}K`
   return `${scaled(value / 1_000_000)}M`
-}
-
-/** Exact token count with thousands separators. */
-export function formatExactTokens(value: number): string {
-  return String(value).replace(/\B(?=(\d{3})+(?!\d))/g, ',')
 }
 
 /**

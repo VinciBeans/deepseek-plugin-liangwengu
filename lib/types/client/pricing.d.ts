@@ -87,6 +87,8 @@ export declare function nextRevision(pricing: ModelPricing, atMs: number): RateR
  * @returns the tier's per-million rates in 元.
  */
 export declare function rateAt(pricing: ModelPricing, atMs: number, tier: PriceTier): TierRate;
+/** Beijing offset in ms: Asia/Shanghai is fixed at UTC+8 (no DST since 1991). */
+export declare const BEIJING_OFFSET_MS: number;
 /**
  * Format an instant as Beijing `YYYY-MM-DD HH:MM`.
  * @param epochMs - UTC epoch ms.
@@ -132,14 +134,10 @@ export declare function costYuan(buckets: TokenBuckets, rate: TierRate): number;
 export declare function compositePerYiTokens(buckets: TokenBuckets, rate: TierRate): number;
 /** Price text: two decimals under 1 元, otherwise up to one. */
 export declare function formatRate(value: number): string;
-/** Blended unit price text: always two decimals. */
-export declare function formatYuanPerYi(value: number): string;
-/** Money text: two decimals, no currency symbol. */
-export declare function formatYuan(value: number): string;
+/** Money text: two decimals, no currency symbol (元, or 元/亿 tokens for the blended price). */
+export declare function formatMoney(value: number): string;
 /** Compact token count: 517 / 12.2K / 517K / 1.2M. */
 export declare function formatCompactTokens(value: number): string;
-/** Exact token count with thousands separators. */
-export declare function formatExactTokens(value: number): string;
 /**
  * Cache-hit percentage text, honest about near-full hits.
  * @param rate - 0–1 ratio from {@link cacheHitRate}.

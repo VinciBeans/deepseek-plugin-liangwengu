@@ -38,15 +38,15 @@ import type {} from '@deepseek-ai/dsh-token-meter/client'
 import type {} from '@deepseek-ai/dsh-api-session-controller/types'
 import {
   activeRevision,
+  BEIJING_OFFSET_MS,
   cacheHitRate,
   compositePerYiTokens,
   costYuan,
   formatBeijingDateTime,
   formatCompactTokens,
   formatHitRate,
+  formatMoney,
   formatRate,
-  formatYuan,
-  formatYuanPerYi,
   lookupPricing,
   nextRevision,
   OFFICIAL_MODELS,
@@ -58,8 +58,6 @@ import {
 
 // ── time-slot logic ───────────────────────────────────────────────────────
 
-/** Beijing offset in ms: Asia/Shanghai is fixed at UTC+8 (no DST since 1991). */
-const BEIJING_OFFSET_MS = 8 * 3600 * 1000
 const DAY_MS = 86400000
 
 /**
@@ -511,13 +509,13 @@ export function TimeSlotIndicator({ useProjection }: IndicatorProps) {
             )}
           <div className="dsh-lwgu-composite">
             <span className="dsh-lwgu-composite-value">
-              {composite === null ? '—' : formatYuanPerYi(composite)}
+              {composite === null ? '—' : formatMoney(composite)}
             </span>
             <span className="dsh-lwgu-composite-unit">元 / 亿 tokens</span>
           </div>
           <div className="dsh-lwgu-note">
             按 {activeEntry.pricing.name} · {tierLabel(tier)}单价估算
-            {cost !== null && <> · 本会话累计 ≈ ¥{formatYuan(cost)}</>}
+            {cost !== null && <> · 本会话累计 ≈ ¥{formatMoney(cost)}</>}
           </div>
           {sessionModelId !== null && !sessionPriced && (
             <div className="dsh-lwgu-note">
@@ -543,9 +541,8 @@ export {
   formatBeijingDateTime,
   formatCompactTokens,
   formatHitRate,
+  formatMoney,
   formatRate,
-  formatYuan,
-  formatYuanPerYi,
   lookupPricing,
   nextRevision,
   OFFICIAL_MODELS,
