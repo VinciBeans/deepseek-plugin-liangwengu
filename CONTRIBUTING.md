@@ -11,6 +11,9 @@ npm run build         # 生成 lib/index.js + lib/client.js + lib/types
 npm test              # 三个测试串行执行，全部读构建产物 lib/client.js
 ```
 
+若 `npm install` 报 `Ineffective mark-compacts`（`file:` 类型依赖让依赖图很大），加
+`NODE_OPTIONS=--max-old-space-size=6144` 再跑；CI 已设该变量。
+
 测试分层（都通过 `window.__ModuleLoader__` 加载已构建的 bundle，验的是发布产物）：
 
 - `test/time-slot.test.mjs` — 峰/谷判定、倒计时与剩余时间

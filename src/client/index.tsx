@@ -23,7 +23,7 @@
  * cache-hit mix under the current slot's rates. Clicking anywhere outside the
  * badge or the menu, or pressing Escape, closes it.
  */
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 // Type-only: pull the `slots` service declaration (Context augmentation) from
 // ui-renderer and the SlotMap merges declaring the conversation header slots
@@ -386,6 +386,7 @@ export function TimeSlotIndicator({ useProjection }: IndicatorProps) {
   const countdown = formatCountdown(getSlotRemaining(now))
   const peak = isPeakMoment(now)
   const tier = tierOf(now)
+  const countdownId = useId()
 
   const usage = useProjection('tokenUsage')
   const modelSelection = useProjection('modelSelection')
@@ -414,17 +415,20 @@ export function TimeSlotIndicator({ useProjection }: IndicatorProps) {
         className="dsh-liangwengu"
         aria-haspopup="dialog"
         aria-expanded={open}
-        aria-label={`${label}，剩余 ${countdown}，查看 DeepSeek 定价`}
+        aria-label={`${label}，查看 DeepSeek 定价`}
+        aria-describedby={countdownId}
         onClick={() => { setOpen(current => !current) }}
       >
         <span className="dsh-lwgu-line">
           <span className="dsh-lwgu-dot" data-peak={peak ? 'true' : 'false'} />
           <span>{label}</span>
         </span>
-        <span className="dsh-lwgu-countdown">剩余 {countdown}</span>
+        <span className="dsh-lwgu-countdown" id={countdownId}>剩余 {countdown}</span>
       </button>
-      {/* Screen readers announce only the slot label, which changes solely at
-          slot boundaries — never the per-second countdown. */}
+      {/* The button's accessible name is the slot label alone (the countdown
+          rides aria-describedby, so it is readable on demand without renaming
+          the button every second); this live region announces label changes at
+          slot boundaries. */}
       <span className="dsh-lwgu-sr" aria-live="polite">{label}</span>
       {open && (
         <div
@@ -515,8 +519,13 @@ export function TimeSlotIndicator({ useProjection }: IndicatorProps) {
           </div>
           <div className="dsh-lwgu-note">
             按 {activeEntry.pricing.name} · {tierLabel(tier)}单价估算
-            {cost !== null && <> · 本会话累计 ≈ ¥{formatMoney(cost)}</>}
+            {cost !== null && <> · 按当前单价折算 ≈ ¥{formatMoney(cost)}</>}
           </div>
+          {revision.effectiveFrom > 0 && (
+            <div className="dsh-lwgu-note">
+              整段会话用量统一按调价后单价折算，调价前的历史用量未分段还原。
+            </div>
+          )}
           {sessionModelId !== null && !sessionPriced && (
             <div className="dsh-lwgu-note">
               当前模型 {sessionModelId} 不在官方价目表中，已改用 {activeEntry.pricing.name} 计价；

@@ -64,6 +64,10 @@ jobs:
           pnpm run build:lib
 
       - name: Install dependencies
+        # The file: type dependencies make npm's tree large enough to exhaust
+        # the default V8 heap on some machines; give the install a bigger one.
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
         run: npm install --legacy-peer-deps
 
       - name: Type check
@@ -71,6 +75,11 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      # lib/ is committed and is what the tests (and consumers) load, so a
+      # stale artifact must fail the build rather than silently ship old code.
+      - name: Verify committed lib/ matches a fresh build
+        run: git diff --exit-code -- lib
 
       - name: Test
         run: npm test
