@@ -21,8 +21,11 @@ globalThis.window = {
   __ModuleLoader__: {
     load({ id, factory }) {
       const require = (spec) => {
-        if (spec === 'react') return { useEffect() {}, useState() {} }
+        if (spec === 'react') {
+          return { useEffect() {}, useState() {}, useLayoutEffect() {}, useRef() {} }
+        }
         if (spec === 'react/jsx-runtime') return { jsx() {}, jsxs() {} }
+        if (spec === 'react-dom') return { createPortal() {} }
         throw new Error(`unexpected require: ${spec}`)
       }
       plugin = factory(require)

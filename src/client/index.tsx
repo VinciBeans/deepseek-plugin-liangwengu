@@ -15,15 +15,46 @@
  * local timezone. The countdown ticks once per second and both the label and
  * the remaining time flip immediately at every slot boundary without a
  * reload.
+ *
+ * Hovering the badge deepens its colours; clicking it opens a detail menu —
+ * the same shape as DSH's own token-stat dialog — whose top half is the
+ * official DeepSeek price table and whose bottom half is this session's
+ * blended unit price in 元 per 亿 tokens, computed from the session's own
+ * cache-hit mix under the current slot's rates. Clicking anywhere outside the
+ * badge or the menu, or pressing Escape, closes it.
  */
-import { useEffect, useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 // Type-only: pull the `slots` service declaration (Context augmentation) from
 // ui-renderer and the SlotMap merges declaring the conversation header slots
 // (ui-conversation) used below. All are erased before bundling — the browser
 // bundle only requires the baseline platform words (react / react/jsx-runtime).
+import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
+// Type-only: merge the `tokenUsage` and `modelSelection` session projections
+// into SessionProjectionMap so the slot-supplied useProjection reads them.
+import type {} from '@deepseek-ai/dsh-token-meter/client'
+import type {} from '@deepseek-ai/dsh-api-session-controller/types'
+import {
+  activeRevision,
+  cacheHitRate,
+  compositePerYiTokens,
+  costYuan,
+  formatBeijingDateTime,
+  formatCompactTokens,
+  formatHitRate,
+  formatRate,
+  formatYuan,
+  formatYuanPerYi,
+  lookupPricing,
+  nextRevision,
+  OFFICIAL_MODELS,
+  PRICING_UPDATED_AT,
+  rateAt,
+  totalTokens,
+  type PriceTier,
+} from './pricing'
 
 // ── time-slot logic ───────────────────────────────────────────────────────
 
@@ -134,15 +165,151 @@ export function formatCountdown(totalSeconds: number): string {
 
 // ── badge visual ──────────────────────────────────────────────────────────
 
+/** The official price tier the badge's current instant falls in. */
+function tierOf(date: Date): PriceTier {
+  return isPeakMoment(date) ? 'peak' : 'offPeak'
+}
+
+/** Human label for a price tier. */
+function tierLabel(tier: PriceTier): string {
+  return tier === 'peak' ? '高峰时段' : '空闲时段'
+}
+
+const STYLE = `
+  .dsh-liangwengu-anchor { display: inline-flex; flex: none; position: relative; }
+  .dsh-liangwengu, .dsh-lwgu-panel {
+    --lwgu-bg: var(--dsw-alias-bg-layer-1, #ffffff);
+    --lwgu-panel-bg: var(--dsw-alias-bg-layer-2, #ffffff);
+    --lwgu-border: var(--dsw-alias-border-l1, rgba(0,0,0,0.12));
+    --lwgu-text: var(--dsw-alias-label-primary, #222);
+    --lwgu-sub: var(--dsw-alias-label-secondary, #8a8f99);
+    --lwgu-dim: var(--dsw-alias-label-caption, #9ca3af);
+    --lwgu-rule: var(--dsw-alias-border-l2, rgba(0,0,0,0.1));
+    --lwgu-hover: var(--dsw-alias-interactive-bg-hover-solid, #f1f3f5);
+    --lwgu-active-bg: var(--dsw-alias-interactive-bg-hover, rgba(0,0,0,0.06));
+    --lwgu-accent: var(--dsw-alias-link, #4176e6);
+    --lwgu-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    --lwgu-panel-shadow: 0 8px 28px rgba(0,0,0,0.16);
+    --lwgu-peak: var(--dsw-alias-state-success-primary, #22c55e);
+    --lwgu-off: var(--dsw-alias-label-caption, #9ca3af);
+  }
+  body[data-ds-dark-theme] .dsh-liangwengu,
+  body[data-ds-dark-theme] .dsh-lwgu-panel {
+    --lwgu-bg: #17181c;
+    --lwgu-panel-bg: #1c1d22;
+    --lwgu-border: rgba(255,255,255,0.14);
+    --lwgu-text: #e8e8ea;
+    --lwgu-sub: #9aa0aa;
+    --lwgu-dim: #71717a;
+    --lwgu-rule: rgba(255,255,255,0.12);
+    --lwgu-hover: #23242a;
+    --lwgu-active-bg: rgba(255,255,255,0.08);
+    --lwgu-accent: #6f9bff;
+    --lwgu-shadow: 0 1px 6px rgba(0,0,0,0.5);
+    --lwgu-panel-shadow: 0 10px 32px rgba(0,0,0,0.6);
+    --lwgu-peak: #4ade80;
+    --lwgu-off: #71717a;
+  }
+  .dsh-liangwengu {
+    display: flex;
+    flex: none;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1px;
+    margin: 0;
+    padding: 3px 10px;
+    border-radius: 14px;
+    background: var(--lwgu-bg);
+    border: 1px solid var(--lwgu-border);
+    box-shadow: var(--lwgu-shadow);
+    color: var(--lwgu-text);
+    font-family: inherit;
+    font-size: 12px;
+    line-height: 15px;
+    font-weight: 500;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background 120ms ease, border-color 120ms ease;
+  }
+  .dsh-liangwengu:hover { background: var(--lwgu-hover); border-color: var(--lwgu-rule); }
+  .dsh-liangwengu:focus-visible { outline: 2px solid var(--lwgu-accent); outline-offset: 1px; }
+  .dsh-lwgu-line { display: inline-flex; align-items: center; gap: 6px; }
+  .dsh-lwgu-dot {
+    width: 7px; height: 7px; border-radius: 50%; flex: none;
+    background: var(--lwgu-off);
+  }
+  .dsh-lwgu-dot[data-peak="true"] { background: var(--lwgu-peak); }
+  .dsh-lwgu-countdown {
+    padding-left: 13px;
+    font-size: 10px;
+    line-height: 12px;
+    color: var(--lwgu-sub);
+    font-weight: 400;
+    font-variant-numeric: tabular-nums;
+  }
+  .dsh-lwgu-sr {
+    position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
+    overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+  }
+  .dsh-lwgu-panel {
+    position: fixed; z-index: 2147483000; box-sizing: border-box; width: 300px;
+    padding: 12px 14px 14px; border-radius: 12px;
+    background: var(--lwgu-panel-bg);
+    border: 1px solid var(--lwgu-border);
+    box-shadow: var(--lwgu-panel-shadow);
+    color: var(--lwgu-text);
+    font-size: 12px; line-height: 16px;
+  }
+  .dsh-lwgu-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+  .dsh-lwgu-title { font-size: 12px; font-weight: 600; }
+  .dsh-lwgu-tier { color: var(--lwgu-sub); font-size: 11px; }
+  .dsh-lwgu-sub { margin-top: 2px; color: var(--lwgu-dim); font-size: 10px; line-height: 14px; }
+  .dsh-lwgu-rule { height: 1px; margin: 10px 0; background: var(--lwgu-rule); }
+  .dsh-lwgu-grid { display: grid; gap: 2px; }
+  .dsh-lwgu-grid-head, .dsh-lwgu-grid-row {
+    display: grid; grid-template-columns: minmax(0,1fr) 52px 52px 44px;
+    align-items: center; gap: 4px;
+  }
+  .dsh-lwgu-grid-head { padding: 0 6px 4px; color: var(--lwgu-dim); font-size: 10px; font-weight: 400; }
+  .dsh-lwgu-grid-head span:not(:first-child), .dsh-lwgu-grid-row span:not(:first-child) {
+    text-align: right; font-variant-numeric: tabular-nums;
+  }
+  .dsh-lwgu-grid-row {
+    margin: 0; padding: 5px 6px; border: none; border-radius: 7px;
+    background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer;
+  }
+  .dsh-lwgu-grid-row:hover { background: var(--lwgu-active-bg); }
+  .dsh-lwgu-grid-row[aria-pressed="true"] { background: var(--lwgu-active-bg); font-weight: 600; }
+  .dsh-lwgu-kv { display: flex; justify-content: space-between; gap: 12px; }
+  .dsh-lwgu-kv span:last-child { font-variant-numeric: tabular-nums; }
+  .dsh-lwgu-composite { display: flex; align-items: baseline; gap: 6px; margin-top: 8px; }
+  .dsh-lwgu-composite-value {
+    color: var(--lwgu-accent);
+    font-size: 22px; line-height: 26px; font-weight: 600; font-variant-numeric: tabular-nums;
+  }
+  .dsh-lwgu-composite-unit { color: var(--lwgu-sub); font-size: 11px; }
+  .dsh-lwgu-note { margin-top: 6px; color: var(--lwgu-dim); font-size: 10px; line-height: 14px; }
+`
+
+/** Slot-supplied props: the session projection read seat. */
+type IndicatorProps = PropsRuntime<'conversation.session.header.utilities'>
+
 /**
  * The time-slot capsule, mounted inside the session header's utilities row —
  * directly left of the export-session button (order: -1 < the button's 0).
  * It is a normal in-flow element, so it never floats over or blocks any UI;
  * it ticks once per second (re-synced to the second boundary), so the
- * countdown is live and slot changes appear promptly.
+ * countdown is live and slot changes appear promptly. Clicking it opens the
+ * price detail menu described in the module doc.
+ * @param props - slot runtime props; only the projection hook is used.
  */
-export function TimeSlotIndicator() {
+export function TimeSlotIndicator({ useProjection }: IndicatorProps) {
   const [now, setNow] = useState(() => new Date())
+  const [open, setOpen] = useState(false)
+  const [pickedModelId, setPickedModelId] = useState<string | null>(null)
+  const [pos, setPos] = useState<{ left: number; top: number } | null>(null)
+  const anchorRef = useRef<HTMLDivElement | null>(null)
+  const panelRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
     let timer: number
@@ -161,97 +328,232 @@ export function TimeSlotIndicator() {
     return () => window.clearTimeout(timer)
   }, [])
 
+  // Place the fixed-position panel under the badge, clamped into the viewport;
+  // the first pass runs unpositioned (hidden) so its own size is measured.
+  // DSH keeps portal-free `position: fixed` descendants working (no ancestor
+  // transform / container-type), so no portal is needed here.
+  useLayoutEffect(() => {
+    if (!open) {
+      setPos(null)
+      return
+    }
+    const place = (): void => {
+      const anchor = anchorRef.current
+      const panel = panelRef.current
+      if (anchor === null || panel === null) return
+      const rect = anchor.getBoundingClientRect()
+      const margin = 12
+      const gap = 8
+      const left = Math.min(
+        Math.max(margin, rect.right - panel.offsetWidth),
+        window.innerWidth - panel.offsetWidth - margin,
+      )
+      let top = rect.bottom + gap
+      if (top + panel.offsetHeight > window.innerHeight - margin) {
+        top = Math.max(margin, rect.top - gap - panel.offsetHeight)
+      }
+      setPos({ left, top })
+    }
+    place()
+    window.addEventListener('resize', place)
+    window.addEventListener('scroll', place, true)
+    return () => {
+      window.removeEventListener('resize', place)
+      window.removeEventListener('scroll', place, true)
+    }
+  }, [open])
+
+  // Outside pointerdown and Escape close, exactly as DSH's own stat dialog.
+  useEffect(() => {
+    if (!open) return
+    const onPointerDown = (event: PointerEvent): void => {
+      const target = event.target as Node | null
+      if (target === null) return
+      if (anchorRef.current?.contains(target) === true) return
+      if (panelRef.current?.contains(target) === true) return
+      setOpen(false)
+    }
+    const onKeyDown = (event: KeyboardEvent): void => {
+      if (event.key === 'Escape') setOpen(false)
+    }
+    document.addEventListener('pointerdown', onPointerDown, true)
+    document.addEventListener('keydown', onKeyDown)
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown, true)
+      document.removeEventListener('keydown', onKeyDown)
+    }
+  }, [open])
+
   const label = getSlotLabel(now)
+  const countdown = formatCountdown(getSlotRemaining(now))
+  const peak = isPeakMoment(now)
+  const tier = tierOf(now)
+
+  const usage = useProjection('tokenUsage')
+  const modelSelection = useProjection('modelSelection')
+  const sessionModelId = modelSelection?.next?.model ?? modelSelection?.lastUsed?.model ?? null
+  const sessionPriced = lookupPricing(sessionModelId) !== undefined
+  const activeModelId = pickedModelId
+    ?? (sessionPriced ? sessionModelId as string : OFFICIAL_MODELS[0]!.id)
+  const activeEntry = OFFICIAL_MODELS.find(entry => entry.id === activeModelId) ?? OFFICIAL_MODELS[0]!
+  // Resolve the revision in force right now: a scheduled official price change
+  // flips the menu by itself as the per-second tick re-renders.
+  const at = now.getTime()
+  const revision = activeRevision(activeEntry.pricing, at)
+  const upcoming = nextRevision(activeEntry.pricing, at)
+  const rate = rateAt(activeEntry.pricing, at, tier)
+
+  const billed = usage !== undefined && totalTokens(usage) > 0
+  const hit = usage === undefined ? null : cacheHitRate(usage)
+  const composite = billed ? compositePerYiTokens(usage, rate) : null
+  const cost = billed ? costYuan(usage, rate) : null
 
   return (
-    <div
-      className="dsh-liangwengu"
-      style={{
-        display: 'flex',
-        flex: 'none',
-        flexDirection: 'column',
-        alignItems: 'flex-start',
-        gap: 1,
-        padding: '3px 10px',
-        borderRadius: 14,
-        background: 'var(--lwgu-bg, #ffffff)',
-        border: '1px solid var(--lwgu-border, rgba(0,0,0,0.12))',
-        boxShadow: 'var(--lwgu-shadow, 0 1px 4px rgba(0,0,0,0.06))',
-        color: 'var(--lwgu-text, #222)',
-        fontSize: 12,
-        lineHeight: '15px',
-        fontWeight: 500,
-        whiteSpace: 'nowrap',
-      }}
-    >
-      <style>{`
-        .dsh-liangwengu {
-          --lwgu-bg: var(--dsw-alias-bg-elevated, #ffffff);
-          --lwgu-border: var(--dsw-alias-border-l1, rgba(0,0,0,0.12));
-          --lwgu-text: var(--dsw-alias-label-primary, #222);
-          --lwgu-sub: var(--dsw-alias-label-secondary, #8a8f99);
-          --lwgu-shadow: 0 1px 4px rgba(0,0,0,0.06);
-          --lwgu-peak: var(--dsw-alias-status-success, #22c55e);
-          --lwgu-off: var(--dsw-alias-status-muted, #9ca3af);
-        }
-        body[data-ds-dark-theme] .dsh-liangwengu {
-          --lwgu-bg: #17181c;
-          --lwgu-border: rgba(255,255,255,0.14);
-          --lwgu-text: #e8e8ea;
-          --lwgu-sub: #9aa0aa;
-          --lwgu-shadow: 0 1px 6px rgba(0,0,0,0.5);
-          --lwgu-peak: #4ade80;
-          --lwgu-off: #71717a;
-        }
-      `}</style>
+    <div ref={anchorRef} className="dsh-liangwengu-anchor">
+      <style>{STYLE}</style>
+      <button
+        type="button"
+        className="dsh-liangwengu"
+        aria-haspopup="dialog"
+        aria-expanded={open}
+        aria-label={`${label}，剩余 ${countdown}，查看 DeepSeek 定价`}
+        onClick={() => { setOpen(current => !current) }}
+      >
+        <span className="dsh-lwgu-line">
+          <span className="dsh-lwgu-dot" data-peak={peak ? 'true' : 'false'} />
+          <span>{label}</span>
+        </span>
+        <span className="dsh-lwgu-countdown">剩余 {countdown}</span>
+      </button>
       {/* Screen readers announce only the slot label, which changes solely at
           slot boundaries — never the per-second countdown. */}
-      <span
-        aria-live="polite"
-        style={{
-          position: 'absolute',
-          width: 1,
-          height: 1,
-          margin: -1,
-          padding: 0,
-          overflow: 'hidden',
-          clip: 'rect(0 0 0 0)',
-          whiteSpace: 'nowrap',
-        }}
-      >
-        {label}
-      </span>
-      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-        <span
+      <span className="dsh-lwgu-sr" aria-live="polite">{label}</span>
+      {open && (
+        <div
+          ref={panelRef}
+          className="dsh-lwgu-panel"
+          role="dialog"
+          aria-label="DeepSeek 定价与综合单价"
           style={{
-            width: 7,
-            height: 7,
-            borderRadius: '50%',
-            flex: 'none',
-            background: label.includes('梁文峰')
-              ? 'var(--lwgu-peak, #22c55e)'
-              : 'var(--lwgu-off, #9ca3af)',
+            left: pos?.left ?? 0,
+            top: pos?.top ?? 0,
+            visibility: pos === null ? 'hidden' : 'visible',
           }}
-        />
-        <span>{label}</span>
-      </span>
-      <span
-        style={{
-          paddingLeft: 13,
-          fontSize: 10,
-          lineHeight: '12px',
-          color: 'var(--lwgu-sub, #8a8f99)',
-          fontWeight: 400,
-          fontVariantNumeric: 'tabular-nums',
-        }}
-      >
-        剩余 {formatCountdown(getSlotRemaining(now))}
-      </span>
+        >
+          <div className="dsh-lwgu-head">
+            <span className="dsh-lwgu-title">DeepSeek 官方定价</span>
+            <span className="dsh-lwgu-tier">{tierLabel(tier)}</span>
+          </div>
+          <div className="dsh-lwgu-sub">
+            元 / 百万 tokens · {revision.effectiveFrom === 0
+              ? `价目表更新于 ${PRICING_UPDATED_AT}`
+              : `${formatBeijingDateTime(revision.effectiveFrom)} 起生效`}
+          </div>
+          <div className="dsh-lwgu-rule" />
+          <div className="dsh-lwgu-grid">
+            <div className="dsh-lwgu-grid-head">
+              <span>模型</span>
+              <span>缓存命中</span>
+              <span>未命中</span>
+              <span>输出</span>
+            </div>
+            {OFFICIAL_MODELS.map((entry) => {
+              const row = rateAt(entry.pricing, at, tier)
+              const active = entry.id === activeModelId
+              return (
+                <button
+                  key={entry.id}
+                  type="button"
+                  className="dsh-lwgu-grid-row"
+                  aria-pressed={active}
+                  onClick={() => { setPickedModelId(entry.id) }}
+                >
+                  <span>{entry.pricing.name}</span>
+                  <span>{formatRate(row.cacheHit)}</span>
+                  <span>{formatRate(row.cacheMiss)}</span>
+                  <span>{formatRate(row.output)}</span>
+                </button>
+              )
+            })}
+          </div>
+          {upcoming !== undefined && (
+            <div className="dsh-lwgu-note">
+              {formatBeijingDateTime(upcoming.effectiveFrom)} 起本模型调价：
+              命中 {formatRate(upcoming[tier].cacheHit)} / 未命中 {formatRate(upcoming[tier].cacheMiss)}
+              / 输出 {formatRate(upcoming[tier].output)}（{tierLabel(tier)}）
+            </div>
+          )}
+          <div className="dsh-lwgu-rule" />
+          <div className="dsh-lwgu-head">
+            <span className="dsh-lwgu-title">本会话综合单价</span>
+          </div>
+          {usage === undefined
+            ? <div className="dsh-lwgu-note">当前会话暂无 token 用量数据。</div>
+            : (
+              <>
+                <div className="dsh-lwgu-kv">
+                  <span>缓存命中率</span>
+                  <span>{hit === null ? '—' : `${formatHitRate(hit)}%`}</span>
+                </div>
+                <div className="dsh-lwgu-kv">
+                  <span>缓存读取</span>
+                  <span>{formatCompactTokens(usage.cacheReadTokens)}</span>
+                </div>
+                <div className="dsh-lwgu-kv">
+                  <span>未命中输入</span>
+                  <span>{formatCompactTokens(usage.uncachedInputTokens)}</span>
+                </div>
+                <div className="dsh-lwgu-kv">
+                  <span>输出</span>
+                  <span>{formatCompactTokens(usage.outputTokens)}</span>
+                </div>
+              </>
+            )}
+          <div className="dsh-lwgu-composite">
+            <span className="dsh-lwgu-composite-value">
+              {composite === null ? '—' : formatYuanPerYi(composite)}
+            </span>
+            <span className="dsh-lwgu-composite-unit">元 / 亿 tokens</span>
+          </div>
+          <div className="dsh-lwgu-note">
+            按 {activeEntry.pricing.name} · {tierLabel(tier)}单价估算
+            {cost !== null && <> · 本会话累计 ≈ ¥{formatYuan(cost)}</>}
+          </div>
+          {sessionModelId !== null && !sessionPriced && (
+            <div className="dsh-lwgu-note">
+              当前模型 {sessionModelId} 不在官方价目表中，已改用 {activeEntry.pricing.name} 计价；
+              可点击上方模型行切换计价模型。
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
 
 // ── plugin body ───────────────────────────────────────────────────────────
+
+// Re-exported so the pricing math stays testable through the built bundle.
+export {
+  activeRevision,
+  cacheHitRate,
+  compositePerYiTokens,
+  costYuan,
+  FLASH_PRICE_CHANGE_AT,
+  formatBeijingDateTime,
+  formatCompactTokens,
+  formatHitRate,
+  formatRate,
+  formatYuan,
+  formatYuanPerYi,
+  lookupPricing,
+  nextRevision,
+  OFFICIAL_MODELS,
+  PRICING_SOURCE_URL,
+  PRICING_UPDATED_AT,
+  rateAt,
+  totalTokens,
+} from './pricing'
 
 /** Required services (cordis fiber inject): the slot registry. */
 export const inject = ['slots']

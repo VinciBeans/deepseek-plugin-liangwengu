@@ -1,4 +1,5 @@
 import type { Context as ClientContext } from '@deepseek-ai/cordis';
+import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots';
 /**
  * Beijing weekday: 0 = Sunday ... 6 = Saturday. Weekends (Sat/Sun) are
  * off-peak valley all day; workdays keep the original peak schedule.
@@ -22,14 +23,19 @@ export declare function getSlotLabel(date: Date): string;
 export declare function getSlotRemaining(date: Date): number;
 /** Format a second countdown as HH:MM:SS, or `Xd HH:MM:SS` when ≥ 24h. */
 export declare function formatCountdown(totalSeconds: number): string;
+/** Slot-supplied props: the session projection read seat. */
+type IndicatorProps = PropsRuntime<'conversation.session.header.utilities'>;
 /**
  * The time-slot capsule, mounted inside the session header's utilities row —
  * directly left of the export-session button (order: -1 < the button's 0).
  * It is a normal in-flow element, so it never floats over or blocks any UI;
  * it ticks once per second (re-synced to the second boundary), so the
- * countdown is live and slot changes appear promptly.
+ * countdown is live and slot changes appear promptly. Clicking it opens the
+ * price detail menu described in the module doc.
+ * @param props - slot runtime props; only the projection hook is used.
  */
-export declare function TimeSlotIndicator(): import("react/jsx-runtime").JSX.Element;
+export declare function TimeSlotIndicator({ useProjection }: IndicatorProps): import("react/jsx-runtime").JSX.Element;
+export { activeRevision, cacheHitRate, compositePerYiTokens, costYuan, FLASH_PRICE_CHANGE_AT, formatBeijingDateTime, formatCompactTokens, formatHitRate, formatRate, formatYuan, formatYuanPerYi, lookupPricing, nextRevision, OFFICIAL_MODELS, PRICING_SOURCE_URL, PRICING_UPDATED_AT, rateAt, totalTokens, } from './pricing';
 /** Required services (cordis fiber inject): the slot registry. */
 export declare const inject: string[];
 /**

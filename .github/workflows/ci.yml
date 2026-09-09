@@ -9,8 +9,9 @@ on:
 jobs:
   build-test:
     runs-on: ubuntu-latest
-    # 多版本兼容矩阵：对 dsh-v0.1.2-alpha.1 ~ alpha.5 与 dsh-v0.1.2-rc.1 各验一遍
-    # typecheck + build + test（契约面六版一致，但分别验证才能守住承诺）。
+    # 多版本兼容矩阵：对 dsh-v0.1.2-alpha.1 ~ alpha.5、dsh-v0.1.2-rc.1 与
+    # dsh-v0.1.3-alpha.1 ~ alpha.2 各验一遍 typecheck + build + test
+    # （契约面八版一致，但分别验证才能守住承诺）。
     strategy:
       fail-fast: false
       matrix:
@@ -27,6 +28,10 @@ jobs:
             pin: db6bdc3576c2d4e7c965e8e3ed0c2a731eed87f5
           - tag: dsh-v0.1.2-rc.1
             pin: a66e4702047846cdaa10c66c9d3df3951f5ea70d
+          - tag: dsh-v0.1.3-alpha.1
+            pin: d347e703908d0406b7a7ef80e3a0e594d86b2215
+          - tag: dsh-v0.1.3-alpha.2
+            pin: 82a5fd61a7cf5c293cec4bdff68f455398d685e9
     steps:
       - uses: actions/checkout@v4
 
@@ -35,7 +40,7 @@ jobs:
       # $RUNNER_WORKSPACE），必须携带已构建的 lib/types 产物；tsconfig 的
       # paths 把 @deepseek-ai/cordis 固定到本包安装的拷贝，因此类型增广
       # 的模块身份不依赖 harness 的 vendor 布局。
-      # 待 0.1.2-alpha.1 系列包发布后，可把这些条目改回 npm 版本并简化矩阵。
+      # 待这些客户端类型包发布到 npm 后，可把这些条目改回 npm 版本并简化矩阵。
       - name: Checkout DeepSeek-Harness (${{ matrix.harness.tag }})
         run: |
           git clone --depth 1 --branch ${{ matrix.harness.tag }} \
