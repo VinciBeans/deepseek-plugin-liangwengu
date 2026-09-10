@@ -52,7 +52,9 @@ typecheck + build + test，各自 pin 到固定 commit。
 
 `lib/` 随仓库提交，克隆即可安装使用；改 `src/` 后重新构建。
 
-两个半侧的生效方式不同：宿主半侧 `lib/index.js` 由 `dsh web` **启动时导入一次**，改完必须重启 web 进程；浏览器半侧 `lib/client.js` 由 client-modules 从磁盘读取并提供给页面，刷新页面即可。宿主半侧比 `lib/index.js` 旧时的典型症状是余额路由 404——胶囊与菜单会显示「宿主通道不可用（HTTP 404）」。
+两个半侧的生效方式不同：宿主半侧 `lib/index.js` 由 `dsh web` **启动时导入一次**，改完必须重启 web 进程；浏览器半侧 `lib/client.js` 由 client-modules 从磁盘读取并提供给页面，刷新页面即可。宿主半侧比 `lib/index.js` 旧时的典型症状是余额路由 404——胶囊与菜单会显示「宿主半侧没有加载余额路由：宿主进程多半比构建产物旧，重启 dsh web 后生效」。
+
+构建时两个半侧都会注入 `__LWGU_STAMP__`（`scripts/build.mjs` 对 `src/` 下每个文件的相对路径与内容取哈希，行尾统一成 LF）。它必须**只由源码决定**：一旦掺入构建时间或 commit 哈希，CI 里的 `git diff --exit-code -- lib` 就会对同一份源码报出不同产物。菜单显示宿主上报的这枚指纹，两侧不一致时即为「半侧版本不一致」。
 
 ## 工作原理
 

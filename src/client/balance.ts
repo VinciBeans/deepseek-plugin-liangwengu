@@ -21,6 +21,9 @@
 /** This plugin's balance route; matches the host half's registered path. */
 export const BALANCE_PATH = '/api/liangwengu.balance'
 
+/** Source-identity stamp of this browser bundle; see `src/stamp.d.ts`. */
+export const BUILD_STAMP: string = __LWGU_STAMP__
+
 /** One `balance_infos` element; amounts are decimal strings. */
 export interface BalanceEntry {
   readonly currency: string
@@ -32,6 +35,8 @@ export interface BalanceEntry {
 /** What the host route answers, either way. */
 export interface BalancePollResult {
   readonly ok: boolean
+  /** Source-identity stamp of the answering host build. */
+  readonly build?: string
   readonly value?: {
     readonly isAvailable: boolean
     readonly entries: readonly BalanceEntry[]
@@ -59,6 +64,8 @@ export interface BalanceState {
   readonly pollIntervalMs: number
   /** Effective low-balance threshold, from the host when it reported one. */
   readonly lowBalanceThreshold: number
+  /** Build stamp the answering host reported; undefined until a poll succeeds. */
+  readonly hostBuild: string | undefined
 }
 
 export interface BalanceStore {
@@ -124,6 +131,12 @@ async function callBalanceStatus(): Promise<BalancePollResult> {
       headers: { 'content-type': 'application/json' },
       body: '{}',
     })
+    if (response.status === 404) {
+      // Connection answers 404 for a path no plugin owns — which is exactly what
+      // a host process older than this bundle looks like (the host half is
+      // imported once at `dsh web` boot). Name it so the menu can say what to do.
+      return { ok: false, error: { code: 'host-missing', message: `HTTP ${response.status}` } }
+    }
     if (!response.ok) {
       return { ok: false, error: { code: 'transport', message: `HTTP ${response.status}` } }
     }
@@ -152,6 +165,7 @@ export function createBalanceStore(
     lastError: undefined,
     pollIntervalMs: DEFAULT_INTERVAL_MS,
     lowBalanceThreshold: DEFAULT_LOW_BALANCE_THRESHOLD,
+    hostBuild: undefined,
   }
   let refs = 0
   let running = false
@@ -184,6 +198,9 @@ export function createBalanceStore(
     publish({ ...state, loading: true })
     try {
       const result = await callStatus()
+      // The host's build stamp is recorded on both outcomes: a host that answers
+      // "no key" is still a host of some build, and the menu names it.
+      const hostBuild = result.build ?? state.hostBuild
       if (result.ok && result.value !== undefined) {
         publish({
           entries: result.value.entries,
@@ -194,6 +211,7 @@ export function createBalanceStore(
           lastError: undefined,
           pollIntervalMs: result.value.pollIntervalMs ?? state.pollIntervalMs,
           lowBalanceThreshold: result.value.lowBalanceThreshold ?? state.lowBalanceThreshold,
+          hostBuild,
         })
       } else {
         publish({
@@ -201,6 +219,7 @@ export function createBalanceStore(
           loading: false,
           failureCount: state.failureCount + 1,
           lastError: result.error ?? { code: 'api' },
+          hostBuild,
         })
       }
     } catch (error) {
@@ -341,10 +360,33 @@ export function balanceErrorText(error: { readonly code: string; readonly messag
       return `无法连接 DeepSeek${detail}`
     case 'invalid-response':
       return `余额响应格式异常${detail}`
+    case 'host-missing':
+      return '宿主半侧没有加载余额路由：宿主进程多半比构建产物旧，重启 dsh web 后生效'
     case 'transport':
       return `宿主通道不可用${detail}`
     default:
-      return `DeepSeek 返回错误${detail}`
+      // Unknown codes are named rather than flattened: a new host code must not
+      // masquerade as "DeepSeek 返回错误".
+      return `未知错误（${error.code}）${detail}`
+  }
+}
+
+/**
+ * The build line under the balance block, and whether the two halves disagree.
+ *
+ * Both halves carry a stamp of the sources they were built from; a mismatch
+ * means the running host and the loaded page come from different builds — the
+ * state that makes a route look missing.
+ * @param state - current polled state.
+ * @returns the line to show, and whether it reports a mismatch.
+ */
+export function buildStatus(state: BalanceState): { readonly text: string; readonly mismatch: boolean } {
+  const host = state.hostBuild
+  if (host === undefined) return { text: `构建 ${BUILD_STAMP}（宿主未上报）`, mismatch: false }
+  if (host === BUILD_STAMP) return { text: `构建 ${BUILD_STAMP}`, mismatch: false }
+  return {
+    text: `构建不一致：宿主 ${host} ≠ 前端 ${BUILD_STAMP}——两者源码快照不同，重启 dsh web 并刷新页面`,
+    mismatch: true,
   }
 }
 

@@ -151,6 +151,7 @@ export const STYLE = `
   }
   .dsh-lwgu-composite-unit { color: var(--lwgu-sub); font-size: 11px; }
   .dsh-lwgu-note { margin-top: 6px; color: var(--lwgu-dim); font-size: 10px; line-height: 14px; }
+  .dsh-lwgu-note[data-tone="warn"] { color: var(--lwgu-warn); }
   @media (prefers-reduced-motion: reduce) {
     .dsh-liangwengu { transition: none; }
   }

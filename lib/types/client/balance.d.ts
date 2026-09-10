@@ -19,6 +19,8 @@
  */
 /** This plugin's balance route; matches the host half's registered path. */
 export declare const BALANCE_PATH = "/api/liangwengu.balance";
+/** Source-identity stamp of this browser bundle; see `src/stamp.d.ts`. */
+export declare const BUILD_STAMP: string;
 /** One `balance_infos` element; amounts are decimal strings. */
 export interface BalanceEntry {
     readonly currency: string;
@@ -29,6 +31,8 @@ export interface BalanceEntry {
 /** What the host route answers, either way. */
 export interface BalancePollResult {
     readonly ok: boolean;
+    /** Source-identity stamp of the answering host build. */
+    readonly build?: string;
     readonly value?: {
         readonly isAvailable: boolean;
         readonly entries: readonly BalanceEntry[];
@@ -61,6 +65,8 @@ export interface BalanceState {
     readonly pollIntervalMs: number;
     /** Effective low-balance threshold, from the host when it reported one. */
     readonly lowBalanceThreshold: number;
+    /** Build stamp the answering host reported; undefined until a poll succeeds. */
+    readonly hostBuild: string | undefined;
 }
 export interface BalanceStore {
     /** Current state; a new object identity after every change. */
@@ -147,6 +153,19 @@ export declare function balanceErrorText(error: {
     readonly code: string;
     readonly message?: string;
 }): string;
+/**
+ * The build line under the balance block, and whether the two halves disagree.
+ *
+ * Both halves carry a stamp of the sources they were built from; a mismatch
+ * means the running host and the loaded page come from different builds — the
+ * state that makes a route look missing.
+ * @param state - current polled state.
+ * @returns the line to show, and whether it reports a mismatch.
+ */
+export declare function buildStatus(state: BalanceState): {
+    readonly text: string;
+    readonly mismatch: boolean;
+};
 /**
  * When the shown amount was last confirmed.
  * @param state - current polled state.

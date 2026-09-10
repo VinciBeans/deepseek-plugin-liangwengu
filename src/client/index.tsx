@@ -312,12 +312,14 @@ export {
 // Same for the balance poller and its display rules.
 export {
   BALANCE_PATH,
+  BUILD_STAMP,
   balance,
   balanceEmptyText,
   balanceErrorText,
   balanceTone,
   balanceUpdatedText,
   badgeBalanceText,
+  buildStatus,
   createBalanceStore,
   currencySign,
   formatBalanceEntries,

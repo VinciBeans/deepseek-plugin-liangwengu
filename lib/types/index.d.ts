@@ -24,6 +24,8 @@ interface ConnectionService {
 }
 interface Logger {
     error(...args: readonly unknown[]): void;
+    info(...args: readonly unknown[]): void;
+    warn(...args: readonly unknown[]): void;
 }
 interface HostCtx {
     get(service: string): unknown;

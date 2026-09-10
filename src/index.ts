@@ -45,6 +45,9 @@ const DEFAULT_LOW_BALANCE_THRESHOLD = 10
 const DEFAULT_API_KEY_ENV = 'DEEPSEEK_API_KEY'
 const DEFAULT_TIMEOUT_MS = 10_000
 
+/** Source-identity stamp of this host build; see `src/stamp.d.ts`. */
+const HOST_BUILD = __LWGU_STAMP__
+
 /** This plugin's exact route below Connection's `/api` carrier. */
 const BALANCE_PATH = '/api/liangwengu.balance'
 
@@ -87,6 +90,8 @@ interface ConnectionService {
 
 interface Logger {
   error(...args: readonly unknown[]): void
+  info(...args: readonly unknown[]): void
+  warn(...args: readonly unknown[]): void
 }
 
 interface HostCtx {
@@ -172,10 +177,39 @@ export async function apply(ctx: HostCtx, config: PluginConfig = {}): Promise<vo
    */
   let recent: { readonly at: number; readonly snapshot: Promise<BalanceSnapshot> } | undefined
 
+  /**
+   * Last failure code already reported; undefined while healthy.
+   *
+   * A five-second poll against a down endpoint would otherwise write a log line
+   * twelve times a minute. Transitions are what an operator needs — it started
+   * failing, the reason changed, it recovered — so only those are reported.
+   */
+  let reported: string | undefined
+
+  const noteOutcome = (code: string | undefined): void => {
+    // Logging is attached to the query promise, so a logger that throws would
+    // turn a reporting failure into an unhandled rejection.
+    try {
+      if (code === undefined) {
+        if (reported !== undefined) {
+          ctx.logger?.info(`liangwengu: balance queries recovered (was ${reported})`)
+          reported = undefined
+        }
+        return
+      }
+      if (code === reported) return
+      reported = code
+      ctx.logger?.warn(`liangwengu: balance query failed (${code})`)
+    } catch {
+      /* a logger must never fail a poll */
+    }
+  }
+
   const queryRecent = (): Promise<BalanceSnapshot> => {
     const now = Date.now()
     if (recent !== undefined && now - recent.at < COALESCE_MS) return recent.snapshot
     const snapshot = querySnapshot(ctx, resolved)
+    snapshot.then(() => { noteOutcome(undefined) }, (error: unknown) => { noteOutcome(asFailure(error).code) })
     recent = { at: now, snapshot }
     return snapshot
   }
@@ -194,11 +228,13 @@ export async function apply(ctx: HostCtx, config: PluginConfig = {}): Promise<vo
         try {
           const snapshot = await queryRecent()
           return Response.json(
-            { ok: true, value: { ...snapshot, ...pollKnobs(resolved) } },
+            { ok: true, build: HOST_BUILD, value: { ...snapshot, ...pollKnobs(resolved) } },
             { headers: { 'cache-control': 'no-store' } },
           )
         } catch (error) {
-          return Response.json({ ok: false, error: asFailure(error) })
+          // The stamp rides failures too: a host that answers "no key" is still
+          // a host of some build, and the menu says which.
+          return Response.json({ ok: false, build: HOST_BUILD, error: asFailure(error) })
         }
       },
     })

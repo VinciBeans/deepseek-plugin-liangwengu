@@ -67,7 +67,7 @@ const BALANCE_SNAPSHOT = {
 let balanceCalls = 0
 globalThis.fetch = async () => {
   balanceCalls += 1
-  return { ok: true, json: async () => ({ ok: true, value: BALANCE_SNAPSHOT }) }
+  return { ok: true, json: async () => ({ ok: true, build: plugin.BUILD_STAMP, value: BALANCE_SNAPSHOT }) }
 }
 
 // ── faked clock helper ─────────────────────────────────────────────────────
@@ -214,6 +214,8 @@ try {
     )
     assert.ok(text.includes('可用：可调用'), 'menu reports whether the account can still call the API')
     assert.ok(text.includes('更新于'), 'menu reports when the amount was confirmed')
+    assert.ok(text.includes(`构建 ${plugin.BUILD_STAMP}`), 'menu names the build that answered')
+    assert.ok(!text.includes('构建不一致'), 'a host of the same build is not flagged')
     assert.ok(
       text.indexOf('账户余额') > text.indexOf('本会话综合单价'),
       'the balance block sits below the session blended price',

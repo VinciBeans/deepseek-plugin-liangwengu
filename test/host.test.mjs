@@ -27,7 +27,14 @@ function makeCtx({ credentials, connection } = {}) {
     connection: connection === undefined
       ? { fetch: { register: (route) => { registered.push(route); return () => {} } } }
       : connection,
-    logger: { error: (...args) => { logged.push(args) } },
+    // All four levels, as the cordis logger service provides them: the host
+    // half reports failures with `warn` and recoveries with `info`.
+    logger: {
+      error: (...args) => { logged.push(args) },
+      warn: (...args) => { logged.push(args) },
+      info: (...args) => { logged.push(args) },
+      debug: () => {},
+    },
   }
   return { ctx, registered, logged }
 }
@@ -68,19 +75,18 @@ const request = () => new Request('http://localhost/api/liangwengu.balance', { m
     await host.apply(ctx, { apiKeyEnv: 'MY_KEY', intervalMs: 7_000, lowBalanceThreshold: 3, baseUrl: 'https://example.test/' })
     const response = await registered[0].fetch(request())
     assert.equal(response.status, 200)
-    assert.deepEqual(await response.json(), {
-      ok: true,
-      value: {
-        isAvailable: true,
-        entries: [{
-          currency: 'CNY',
-          totalBalance: '110.00',
-          grantedBalance: '0.00',
-          toppedUpBalance: '110.00',
-        }],
-        pollIntervalMs: 7_000,
-        lowBalanceThreshold: 3,
-      },
+    const body = await response.json()
+    assert.match(body.build, /^[0-9a-f]{8}$/, 'the envelope names the answering build')
+    assert.deepEqual(body.value, {
+      isAvailable: true,
+      entries: [{
+        currency: 'CNY',
+        totalBalance: '110.00',
+        grantedBalance: '0.00',
+        toppedUpBalance: '110.00',
+      }],
+      pollIntervalMs: 7_000,
+      lowBalanceThreshold: 3,
     })
     // A trailing slash on the configured origin must not double up.
     assert.equal(seen[0].url, 'https://example.test/user/balance')
@@ -230,4 +236,59 @@ const request = () => new Request('http://localhost/api/liangwengu.balance', { m
   assert.match(String(logged[0][0]), /connection service unavailable/)
 }
 
-console.log('host test ok (route registration + success via seam/env + failure codes + config defaults + degradation)')
+// ── build stamp and failure transitions ────────────────────────────────────
+{
+  const realFetch = globalThis.fetch
+  const realNow = Date.now
+  let clock = 5_000_000
+  Date.now = () => clock
+  try {
+    // Answers carry the host's source stamp, on success and on failure alike.
+    globalThis.fetch = async () => new Response(JSON.stringify({ is_available: true, balance_infos: [] }), { status: 200 })
+    const okCtx = makeCtx({ credentials: { resolve: async () => ({ value: 'sk-any' }) } })
+    await host.apply(okCtx.ctx, {})
+    const okBody = await (await okCtx.registered[0].fetch(request())).json()
+    assert.match(okBody.build, /^[0-9a-f]{8}$/, 'success carries the host build stamp')
+
+    // A warning is written when failure starts and when the reason changes, and
+    // an info line when it recovers — not one line per five-second poll.
+    const warnings = []
+    const infos = []
+    const credentials = { resolve: async () => ({ value: 'sk-any' }) }
+    globalThis.fetch = async () => new Response('nope', { status: 401 })
+    const failing = {
+      get: name => (name === 'credentials' ? credentials : undefined),
+      connection: { fetch: { register: () => () => {} } },
+      logger: { error() {}, warn: (...args) => warnings.push(args), info: (...args) => infos.push(args) },
+    }
+    const routes = []
+    failing.connection.fetch.register = route => { routes.push(route); return () => {} }
+    await host.apply(failing, {})
+    const body = async () => (await routes[0].fetch(request())).json()
+    await body()
+    assert.equal(warnings.length, 1, 'the first failure is reported')
+    assert.match(String(warnings[0][0]), /unauthorized/)
+    clock += 2_000
+    await body()
+    assert.equal(warnings.length, 1, 'a repeat of the same failure is not')
+    assert.equal(infos.length, 0)
+    assert.match((await body()).build, /^[0-9a-f]{8}$/, 'failures carry the stamp too')
+
+    globalThis.fetch = async () => new Response(JSON.stringify({ is_available: true, balance_infos: [] }), { status: 200 })
+    clock += 2_000
+    await body()
+    assert.equal(infos.length, 1, 'recovery is reported once')
+    assert.match(String(infos[0][0]), /recovered/)
+    clock += 2_000
+    await body()
+    assert.equal(infos.length, 1, 'staying healthy is not reported again')
+  } finally {
+    globalThis.fetch = realFetch
+    Date.now = realNow
+  }
+}
+
+console.log(
+  'host test ok (route registration + success via seam/env + failure codes + coalescing + config defaults +'
+  + ' degradation + build stamp + failure transitions)',
+)

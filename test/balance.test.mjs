@@ -30,8 +30,8 @@ globalThis.window = {
 await import(new URL('../lib/client.js', import.meta.url).href)
 
 const {
-  BALANCE_PATH, badgeBalanceText, balanceEmptyText, balanceErrorText, balanceTone,
-  balanceUpdatedText, createBalanceStore, currencySign, formatBalanceEntries,
+  BALANCE_PATH, BUILD_STAMP, badgeBalanceText, balanceEmptyText, balanceErrorText, balanceTone,
+  balanceUpdatedText, buildStatus, createBalanceStore, currencySign, formatBalanceEntries,
   isBalanceLow, isEntryLow, jitteredDelayMs, nextPollDelayMs,
 } = plugin
 
@@ -236,9 +236,50 @@ assert.equal(formatBalanceEntries([]), '')
   assert.match(balanceErrorText({ code: 'unauthorized' }), /拒绝/)
   assert.match(balanceErrorText({ code: 'invalid-response', message: 'shape' }), /格式异常（shape）/)
   assert.match(balanceErrorText({ code: 'transport', message: 'HTTP 401' }), /宿主通道不可用（HTTP 401）/)
-  assert.match(balanceErrorText({ code: 'api', message: 'HTTP 500' }), /DeepSeek 返回错误（HTTP 500）/)
+  // A route nobody owns is the stale-host signature and must say what to do.
+  assert.match(balanceErrorText({ code: 'host-missing', message: 'HTTP 404' }), /重启 dsh web/)
+  // An unknown code is named, never flattened into a wrong explanation.
+  assert.match(balanceErrorText({ code: 'rate-limited' }), /未知错误（rate-limited）/)
+}
+
+// ── build stamp: both halves must come from the same sources ───────────────
+{
+  assert.match(plugin.BUILD_STAMP, /^[0-9a-f]{8}$/, 'the bundle carries a source stamp')
+  const ready = {
+    entries: SNAPSHOT.entries,
+    isAvailable: true,
+    fetchedAt: 0,
+    loading: false,
+    failureCount: 0,
+    lastError: undefined,
+    pollIntervalMs: 5_000,
+    lowBalanceThreshold: 10,
+    hostBuild: plugin.BUILD_STAMP,
+  }
+  assert.deepEqual(buildStatus(ready), { text: `构建 ${plugin.BUILD_STAMP}`, mismatch: false })
+  assert.deepEqual(
+    buildStatus({ ...ready, hostBuild: 'deadbeef' }),
+    {
+      text: `构建不一致：宿主 deadbeef ≠ 前端 ${plugin.BUILD_STAMP}——两者源码快照不同，重启 dsh web 并刷新页面`,
+      mismatch: true,
+    },
+  )
+  // Never polled: the host's build is simply unknown, which is not a mismatch.
+  assert.deepEqual(
+    buildStatus({ ...ready, hostBuild: undefined }),
+    { text: `构建 ${plugin.BUILD_STAMP}（宿主未上报）`, mismatch: false },
+  )
+
+  // The store records the stamp from either outcome, so a failing host still
+  // reports which build is talking.
+  const store = createBalanceStore(async () => ({ ok: false, build: 'cafebabe', error: { code: 'no-key' } }))
+  store.refresh()
+  await flush()
+  assert.equal(store.getSnapshot().hostBuild, 'cafebabe')
+  assert.equal(buildStatus(store.getSnapshot()).mismatch, true)
 }
 
 console.log(
-  'balance test ok (route + backoff + store success/failure/stale + acquire/release + low-balance + display states + menu detail text)',
+  'balance test ok (route + backoff + jitter + store success/failure/stale + acquire/release + low-balance'
+  + ' + display states + menu detail text + build stamp)',
 )

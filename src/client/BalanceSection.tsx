@@ -11,6 +11,7 @@ import {
   balanceEmptyText,
   balanceErrorText,
   balanceUpdatedText,
+  buildStatus,
   currencySign,
   isEntryLow,
   type BalanceState,
@@ -24,6 +25,7 @@ export interface BalanceSectionProps {
 
 export const BalanceSection = memo(function BalanceSection({ state, onRefresh }: BalanceSectionProps) {
   const entries = state.entries ?? []
+  const build = buildStatus(state)
   return (
     <>
       <div className="dsh-lwgu-head">
@@ -70,6 +72,12 @@ export const BalanceSection = memo(function BalanceSection({ state, onRefresh }:
           {balanceErrorText(state.lastError)}
         </div>
       )}
+      {/* Which build answered, and whether both halves agree: the one fact that
+          tells "the host process is older than this page" apart from a real
+          DeepSeek failure. */}
+      <div className="dsh-lwgu-note" data-tone={build.mismatch ? 'warn' : undefined}>
+        {build.text}
+      </div>
     </>
   )
 })
