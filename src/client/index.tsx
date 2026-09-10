@@ -59,7 +59,16 @@ import {
   type PriceTier,
   type RateRevision,
 } from './pricing'
-import { badgeBalanceText, balance, balanceTone } from './balance'
+import {
+  badgeBalanceText,
+  balance,
+  balanceEmptyText,
+  balanceErrorText,
+  balanceTone,
+  balanceUpdatedText,
+  currencySign,
+  isEntryLow,
+} from './balance'
 
 // ── time-slot logic ───────────────────────────────────────────────────────
 
@@ -301,6 +310,17 @@ const STYLE = `
   .dsh-lwgu-grid-row[aria-pressed="true"] { background: var(--lwgu-active-bg); font-weight: 600; }
   .dsh-lwgu-kv { display: flex; justify-content: space-between; gap: 12px; }
   .dsh-lwgu-kv span:last-child { font-variant-numeric: tabular-nums; }
+  .dsh-lwgu-bal { margin-top: 4px; }
+  .dsh-lwgu-bal-amount { font-weight: 600; }
+  .dsh-lwgu-bal-amount[data-tone="low"] { color: var(--lwgu-alert); }
+  .dsh-lwgu-refresh {
+    margin: 0; padding: 0 2px; border: none; background: none;
+    color: var(--lwgu-accent); font: inherit; font-size: 11px;
+    border-radius: 4px; cursor: pointer;
+  }
+  .dsh-lwgu-refresh:hover:not(:disabled) { text-decoration: underline; }
+  .dsh-lwgu-refresh:focus-visible { outline: 2px solid var(--lwgu-accent); outline-offset: 1px; }
+  .dsh-lwgu-refresh:disabled { color: var(--lwgu-dim); cursor: default; }
   .dsh-lwgu-composite { display: flex; align-items: baseline; gap: 6px; margin-top: 8px; }
   .dsh-lwgu-composite-value {
     color: var(--lwgu-accent);
@@ -434,6 +454,7 @@ export function TimeSlotIndicator({ useProjection, sessionId }: IndicatorProps) 
   // price table, the menu's detail block).
   const balanceText = badgeBalanceText(balanceState)
   const balanceToneValue = balanceTone(balanceState)
+  const balanceEntries = balanceState.entries ?? []
 
   const usage = useProjection('tokenUsage')
   const modelSelection = useProjection('modelSelection')
@@ -587,6 +608,51 @@ export function TimeSlotIndicator({ useProjection, sessionId }: IndicatorProps) 
               可点击上方模型行切换计价模型。
             </div>
           )}
+          <div className="dsh-lwgu-rule" />
+          <div className="dsh-lwgu-head">
+            <span className="dsh-lwgu-title">账户余额</span>
+            <button
+              type="button"
+              className="dsh-lwgu-refresh"
+              disabled={balanceState.loading}
+              onClick={() => { balance.refresh() }}
+            >
+              {balanceState.loading ? '查询中…' : '刷新'}
+            </button>
+          </div>
+          {balanceEntries.length === 0
+            ? <div className="dsh-lwgu-note">{balanceEmptyText(balanceState)}</div>
+            : (
+              <>
+                {balanceEntries.map((entry) => {
+                  const sign = currencySign(entry.currency)
+                  const low = isEntryLow(entry, balanceState.lowBalanceThreshold)
+                  return (
+                    <div className="dsh-lwgu-bal" key={entry.currency}>
+                      <div className="dsh-lwgu-kv">
+                        <span>{entry.currency} 总可用</span>
+                        <span className="dsh-lwgu-bal-amount" data-tone={low ? 'low' : 'ok'}>
+                          {sign}{entry.totalBalance}
+                        </span>
+                      </div>
+                      <div className="dsh-lwgu-note">
+                        未过期赠金 {sign}{entry.grantedBalance} · 充值余额 {sign}{entry.toppedUpBalance}
+                      </div>
+                    </div>
+                  )
+                })}
+                <div className="dsh-lwgu-note">
+                  可用：{balanceState.isAvailable === false ? '不可调用' : '可调用'}
+                  {' · '}
+                  更新于 {balanceUpdatedText(balanceState)}
+                </div>
+              </>
+            )}
+          {balanceState.lastError !== undefined && (
+            <div className="dsh-lwgu-note">
+              {balanceErrorText(balanceState.lastError)}
+            </div>
+          )}
         </div>
       )}
     </div>
@@ -620,12 +686,16 @@ export {
 export {
   BALANCE_PATH,
   balance,
+  balanceEmptyText,
+  balanceErrorText,
   balanceTone,
+  balanceUpdatedText,
   badgeBalanceText,
   createBalanceStore,
   currencySign,
   formatBalanceEntries,
   isBalanceLow,
+  isEntryLow,
   nextPollDelayMs,
 } from './balance'
 

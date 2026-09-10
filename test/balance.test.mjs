@@ -31,8 +31,9 @@ globalThis.window = {
 await import(new URL('../lib/client.js', import.meta.url).href)
 
 const {
-  BALANCE_PATH, badgeBalanceText, balanceTone, createBalanceStore,
-  currencySign, formatBalanceEntries, isBalanceLow, nextPollDelayMs,
+  BALANCE_PATH, badgeBalanceText, balanceEmptyText, balanceErrorText, balanceTone,
+  balanceUpdatedText, createBalanceStore, currencySign, formatBalanceEntries,
+  isBalanceLow, isEntryLow, nextPollDelayMs,
 } = plugin
 
 /** Let a poll's promise chain (callStatus → state write) settle. */
@@ -174,8 +175,9 @@ assert.equal(formatBalanceEntries([]), '')
 
 // ── low balance ────────────────────────────────────────────────────────────
 {
+  const entry = { currency: 'CNY', totalBalance: '3.20', grantedBalance: '3.20', toppedUpBalance: '0.00' }
   const low = {
-    entries: [{ currency: 'CNY', totalBalance: '3.20', grantedBalance: '3.20', toppedUpBalance: '0.00' }],
+    entries: [entry],
     isAvailable: true,
     fetchedAt: 0,
     loading: false,
@@ -188,13 +190,43 @@ assert.equal(formatBalanceEntries([]), '')
   assert.equal(balanceTone(low), 'low')
   assert.equal(badgeBalanceText(low), '¥3.20 ⚠')
   // At the threshold is not below it.
-  assert.equal(isBalanceLow({ ...low, entries: [{ ...low.entries[0], totalBalance: '10.00' }] }), false)
+  assert.equal(isBalanceLow({ ...low, entries: [{ ...entry, totalBalance: '10.00' }] }), false)
+  assert.equal(isEntryLow({ ...entry, totalBalance: '10.00' }, 10), false)
   // An unusable account alerts regardless of the amount.
-  assert.equal(isBalanceLow({ ...low, entries: [{ ...low.entries[0], totalBalance: '999.00' }], isAvailable: false }), true)
+  assert.equal(isBalanceLow({ ...low, entries: [{ ...entry, totalBalance: '999.00' }], isAvailable: false }), true)
   // A non-numeric amount cannot be judged, and must not be treated as zero.
-  assert.equal(isBalanceLow({ ...low, entries: [{ ...low.entries[0], totalBalance: '—' }] }), false)
+  assert.equal(isBalanceLow({ ...low, entries: [{ ...entry, totalBalance: '—' }] }), false)
+}
+
+// ── menu detail text ───────────────────────────────────────────────────────
+{
+  const ready = {
+    entries: SNAPSHOT.entries,
+    isAvailable: true,
+    fetchedAt: Date.UTC(2026, 8, 8, 4, 0, 0),
+    loading: false,
+    failureCount: 0,
+    lastError: undefined,
+    pollIntervalMs: 5_000,
+    lowBalanceThreshold: 10,
+  }
+  assert.equal(balanceUpdatedText(ready), new Date(ready.fetchedAt).toLocaleTimeString())
+  assert.equal(balanceUpdatedText({ ...ready, fetchedAt: undefined }), '尚未成功查询')
+  assert.equal(balanceEmptyText({ ...ready, entries: [], loading: true }), '查询中…')
+  assert.equal(balanceEmptyText({ ...ready, entries: [], loading: false }), '尚未查询到余额。')
+  assert.equal(
+    balanceEmptyText({ ...ready, entries: [], failureCount: 2, lastError: { code: 'network', message: 'socket hang up' } }),
+    '无法连接 DeepSeek（socket hang up）',
+  )
+
+  // Every failure code gets its own explanation, and the wire message rides along.
+  assert.match(balanceErrorText({ code: 'no-key' }), /未配置 API key/)
+  assert.match(balanceErrorText({ code: 'unauthorized' }), /拒绝/)
+  assert.match(balanceErrorText({ code: 'invalid-response', message: 'shape' }), /格式异常（shape）/)
+  assert.match(balanceErrorText({ code: 'transport', message: 'HTTP 401' }), /宿主通道不可用（HTTP 401）/)
+  assert.match(balanceErrorText({ code: 'api', message: 'HTTP 500' }), /DeepSeek 返回错误（HTTP 500）/)
 }
 
 console.log(
-  'balance test ok (route + backoff + store success/failure/stale + acquire/release + low-balance + display states)',
+  'balance test ok (route + backoff + store success/failure/stale + acquire/release + low-balance + display states + menu detail text)',
 )

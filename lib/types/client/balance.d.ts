@@ -101,6 +101,8 @@ export declare function currencySign(currency: string): string;
  * @returns e.g. `¥110.00` or `¥110.00 · $5.00`; an empty string when there are none.
  */
 export declare function formatBalanceEntries(entries: readonly BalanceEntry[]): string;
+/** Whether one entry sits below the low-balance threshold. */
+export declare function isEntryLow(entry: BalanceEntry, threshold: number): boolean;
 /** Whether the account is out of balance: below the threshold, or unusable. */
 export declare function isBalanceLow(state: BalanceState): boolean;
 /** Presentation tone of the balance line: which fact deserves the colour. */
@@ -118,3 +120,24 @@ export declare function balanceTone(state: BalanceState): BalanceTone;
  * @returns the amount, a short reason it is missing, or `—`.
  */
 export declare function badgeBalanceText(state: BalanceState): string;
+/**
+ * The menu's stand-in line when there is no amount to show.
+ * @param state - current polled state.
+ * @returns why the balance is missing, and what to do about it.
+ */
+export declare function balanceEmptyText(state: BalanceState): string;
+/**
+ * Explain one poll failure, keeping the wire message when it carries one.
+ * @param error - the failure code and optional message from the host route.
+ * @returns a one-line Chinese explanation.
+ */
+export declare function balanceErrorText(error: {
+    readonly code: string;
+    readonly message?: string;
+}): string;
+/**
+ * When the shown amount was last confirmed.
+ * @param state - current polled state.
+ * @returns local wall-clock time of the last success, or a never-updated label.
+ */
+export declare function balanceUpdatedText(state: BalanceState): string;

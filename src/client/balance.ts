@@ -248,13 +248,16 @@ export function formatBalanceEntries(entries: readonly BalanceEntry[]): string {
   return entries.map(entry => `${currencySign(entry.currency)}${entry.totalBalance}`).join(' · ')
 }
 
+/** Whether one entry sits below the low-balance threshold. */
+export function isEntryLow(entry: BalanceEntry, threshold: number): boolean {
+  const amount = Number(entry.totalBalance)
+  return Number.isFinite(amount) && amount < threshold
+}
+
 /** Whether the account is out of balance: below the threshold, or unusable. */
 export function isBalanceLow(state: BalanceState): boolean {
   if (state.isAvailable === false) return true
-  return (state.entries ?? []).some((entry) => {
-    const amount = Number(entry.totalBalance)
-    return Number.isFinite(amount) && amount < state.lowBalanceThreshold
-  })
+  return (state.entries ?? []).some(entry => isEntryLow(entry, state.lowBalanceThreshold))
 }
 
 /** Presentation tone of the balance line: which fact deserves the colour. */
@@ -287,4 +290,49 @@ export function badgeBalanceText(state: BalanceState): string {
     return state.lastError?.code === 'no-key' ? '未配置密钥' : '查询失败'
   }
   return state.loading ? '查询中…' : '—'
+}
+
+/**
+ * The menu's stand-in line when there is no amount to show.
+ * @param state - current polled state.
+ * @returns why the balance is missing, and what to do about it.
+ */
+export function balanceEmptyText(state: BalanceState): string {
+  if (state.failureCount > 0) {
+    return state.lastError === undefined ? '查询失败' : balanceErrorText(state.lastError)
+  }
+  return state.loading ? '查询中…' : '尚未查询到余额。'
+}
+
+/**
+ * Explain one poll failure, keeping the wire message when it carries one.
+ * @param error - the failure code and optional message from the host route.
+ * @returns a one-line Chinese explanation.
+ */
+export function balanceErrorText(error: { readonly code: string; readonly message?: string }): string {
+  const detail = error.message === undefined || error.message.length === 0 ? '' : `（${error.message}）`
+  switch (error.code) {
+    case 'no-key':
+      return '未配置 API key：在 Web Models 页填写，或导出 DEEPSEEK_API_KEY 后重启'
+    case 'unauthorized':
+      return `API key 被 DeepSeek 拒绝${detail}`
+    case 'network':
+      return `无法连接 DeepSeek${detail}`
+    case 'invalid-response':
+      return `余额响应格式异常${detail}`
+    case 'transport':
+      return `宿主通道不可用${detail}`
+    default:
+      return `DeepSeek 返回错误${detail}`
+  }
+}
+
+/**
+ * When the shown amount was last confirmed.
+ * @param state - current polled state.
+ * @returns local wall-clock time of the last success, or a never-updated label.
+ */
+export function balanceUpdatedText(state: BalanceState): string {
+  if (state.fetchedAt === undefined) return '尚未成功查询'
+  return new Date(state.fetchedAt).toLocaleTimeString()
 }

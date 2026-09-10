@@ -197,6 +197,26 @@ try {
     const flashCells = [...modelRow('V4-Flash').children].slice(1).map(cell => cell.textContent)
     assert.deepEqual(v41Cells, flashCells, 'V4.1-Flash shows the same rates as V4-Flash')
 
+    // ── the balance detail block sits at the very foot of the panel ────────
+    assert.ok(text.includes('账户余额'), 'menu shows the balance heading')
+    assert.ok(text.includes('CNY 总可用') && text.includes('¥110.00'), 'menu shows the total balance per currency')
+    assert.ok(
+      text.includes('未过期赠金 ¥0.00 · 充值余额 ¥110.00'),
+      'menu splits granted and topped-up balance',
+    )
+    assert.ok(text.includes('可用：可调用'), 'menu reports whether the account can still call the API')
+    assert.ok(text.includes('更新于'), 'menu reports when the amount was confirmed')
+    assert.ok(
+      text.indexOf('账户余额') > text.indexOf('本会话综合单价'),
+      'the balance block sits below the session blended price',
+    )
+    const refresh = panel.querySelector('.dsh-lwgu-refresh')
+    assert.ok(refresh !== null, 'menu offers a manual balance refresh')
+    const callsBeforeRefresh = balanceCalls
+    refresh.dispatchEvent(new window.MouseEvent('click', { bubbles: true }))
+    await tick()
+    assert.ok(balanceCalls > callsBeforeRefresh, 'the refresh button polls the balance route again')
+
     // Outside pointerdown closes.
     const outside = document.createElement('button')
     document.body.appendChild(outside)
