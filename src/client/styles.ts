@@ -11,6 +11,8 @@
 export const STYLE = `
   .dsh-liangwengu-anchor { display: inline-flex; flex: none; position: relative; }
   .dsh-liangwengu, .dsh-lwgu-panel {
+    --lwgu-label-size: 12px;
+    --lwgu-label-line: 15px;
     --lwgu-bg: var(--dsw-alias-bg-layer-1, #ffffff);
     --lwgu-panel-bg: var(--dsw-alias-bg-layer-2, #ffffff);
     --lwgu-border: var(--dsw-alias-border-l1, rgba(0,0,0,0.12));
@@ -62,8 +64,8 @@ export const STYLE = `
     box-shadow: var(--lwgu-shadow);
     color: var(--lwgu-text);
     font-family: inherit;
-    font-size: 12px;
-    line-height: 15px;
+    font-size: var(--lwgu-label-size);
+    line-height: var(--lwgu-label-line);
     font-weight: 500;
     white-space: nowrap;
     cursor: pointer;
@@ -84,11 +86,12 @@ export const STYLE = `
     font-weight: 400;
     font-variant-numeric: tabular-nums;
   }
-  /* The account fact, after the separator: one size down from the label, so the
-     row still reads label → countdown → balance. */
+  /* The account fact after the separator, set at the slot label's own size, so
+     the balance reads as part of the same sentence; the countdown between them
+     stays a size down as the secondary figure. */
   .dsh-lwgu-balance {
-    font-size: 10px;
-    line-height: 12px;
+    font-size: var(--lwgu-label-size);
+    line-height: var(--lwgu-label-line);
     color: var(--lwgu-sub);
     font-weight: 400;
     font-variant-numeric: tabular-nums;

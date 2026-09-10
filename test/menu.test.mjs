@@ -320,6 +320,14 @@ try {
   assert.ok(bundleSource.includes('.dsh-liangwengu:hover'), 'bundle ships the hover deepening rule')
   assert.ok(bundleSource.includes('prefers-reduced-motion'), 'bundle respects reduced motion')
   assert.ok(!bundleSource.includes('require("react-dom")'), 'bundle keeps react/react/jsx-runtime as its only externals')
+  // The `| 余额 …` segment is set at the slot label's own size, taken from one
+  // token so the two cannot drift apart.
+  assert.ok(bundleSource.includes('--lwgu-label-size: 12px'), 'the label size is a token')
+  assert.match(
+    bundleSource,
+    /\.dsh-lwgu-balance \{[^}]*font-size: var\(--lwgu-label-size\)/,
+    'the balance segment takes its size from the label token',
+  )
 } finally {
   installClock(null)
   for (const { root, container } of mounted) {
