@@ -154,18 +154,17 @@ export declare function balanceErrorText(error: {
     readonly message?: string;
 }): string;
 /**
- * The build line under the balance block, and whether the two halves disagree.
+ * The warning shown only when the two halves come from different builds.
  *
- * Both halves carry a stamp of the sources they were built from; a mismatch
- * means the running host and the loaded page come from different builds — the
- * state that makes a route look missing.
+ * Both halves carry a stamp of the sources they were built from, but the stamps
+ * themselves stay out of the UI: a matching build says nothing worth a line. A
+ * mismatch does — it is the state where a route can look missing while
+ * everything else works, so it is named with what to do about it.
  * @param state - current polled state.
- * @returns the line to show, and whether it reports a mismatch.
+ * @returns the warning, or undefined while the halves agree (or before the host
+ * has reported at all).
  */
-export declare function buildStatus(state: BalanceState): {
-    readonly text: string;
-    readonly mismatch: boolean;
-};
+export declare function buildMismatchText(state: BalanceState): string | undefined;
 /**
  * When the shown amount was last confirmed.
  * @param state - current polled state.

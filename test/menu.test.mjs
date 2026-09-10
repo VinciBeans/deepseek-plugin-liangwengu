@@ -65,9 +65,11 @@ const BALANCE_SNAPSHOT = {
   lowBalanceThreshold: 10,
 }
 let balanceCalls = 0
+/** Build stamp the faked host reports; the mismatch scenario flips it. */
+let hostBuild = plugin.BUILD_STAMP
 globalThis.fetch = async () => {
   balanceCalls += 1
-  return { ok: true, json: async () => ({ ok: true, build: plugin.BUILD_STAMP, value: BALANCE_SNAPSHOT }) }
+  return { ok: true, json: async () => ({ ok: true, build: hostBuild, value: BALANCE_SNAPSHOT }) }
 }
 
 // ── faked clock helper ─────────────────────────────────────────────────────
@@ -214,8 +216,9 @@ try {
     )
     assert.ok(text.includes('可用：可调用'), 'menu reports whether the account can still call the API')
     assert.ok(text.includes('更新于'), 'menu reports when the amount was confirmed')
-    assert.ok(text.includes(`构建 ${plugin.BUILD_STAMP}`), 'menu names the build that answered')
-    assert.ok(!text.includes('构建不一致'), 'a host of the same build is not flagged')
+    // The build stamps are diagnostics, not content: a matching pair says nothing.
+    assert.ok(!text.includes('构建'), 'a matching host build puts no field in the panel')
+    assert.ok(!text.includes('不是同一份构建'), 'and no warning either')
     assert.ok(
       text.indexOf('账户余额') > text.indexOf('本会话综合单价'),
       'the balance block sits below the session blended price',
@@ -235,6 +238,30 @@ try {
     assert.ok(document.querySelector('.dsh-lwgu-panel') === null, 'outside pointerdown closes the menu')
     assert.ok(document.activeElement === button, 'closing returns focus to the badge')
     outside.remove()
+  }
+
+  // ── scenario 2: a host of a different build is called out ────────────────
+  {
+    const at = cut - 3600_000
+    const { button } = await mount(at)
+    button.dispatchEvent(new window.MouseEvent('click', { bubbles: true }))
+    await tick()
+    hostBuild = 'deadbeef'
+    const refresh = document.querySelector('.dsh-lwgu-refresh')
+    refresh.dispatchEvent(new window.MouseEvent('click', { bubbles: true }))
+    await tick()
+    const text = document.querySelector('.dsh-lwgu-panel').textContent
+    assert.ok(
+      text.includes('宿主半侧与前端不是同一份构建（宿主 deadbeef'),
+      'a page talking to a differently-built host says so',
+    )
+    assert.ok(text.includes('重启 dsh web'), 'and says what to do about it')
+    hostBuild = plugin.BUILD_STAMP
+    // Close it: a panel left open would be the first `.dsh-lwgu-panel` the next
+    // scenario queries, and it would assert against this scenario's clock.
+    document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    await tick()
+    assert.ok(document.querySelector('.dsh-lwgu-panel') === null, 'the mismatch scenario closes its menu')
   }
 
   // ── scenario 2: one hour AFTER the cut (off-peak tier, new rates) ────────

@@ -31,7 +31,7 @@ await import(new URL('../lib/client.js', import.meta.url).href)
 
 const {
   BALANCE_PATH, BUILD_STAMP, badgeBalanceText, balanceEmptyText, balanceErrorText, balanceTone,
-  balanceUpdatedText, buildStatus, createBalanceStore, currencySign, formatBalanceEntries,
+  balanceUpdatedText, buildMismatchText, createBalanceStore, currencySign, formatBalanceEntries,
   isBalanceLow, isEntryLow, jitteredDelayMs, nextPollDelayMs,
 } = plugin
 
@@ -242,7 +242,7 @@ assert.equal(formatBalanceEntries([]), '')
   assert.match(balanceErrorText({ code: 'rate-limited' }), /未知错误（rate-limited）/)
 }
 
-// ── build stamp: both halves must come from the same sources ───────────────
+// ── build stamp: only a mismatch earns a line ──────────────────────────────
 {
   assert.match(plugin.BUILD_STAMP, /^[0-9a-f]{8}$/, 'the bundle carries a source stamp')
   const ready = {
@@ -256,18 +256,13 @@ assert.equal(formatBalanceEntries([]), '')
     lowBalanceThreshold: 10,
     hostBuild: plugin.BUILD_STAMP,
   }
-  assert.deepEqual(buildStatus(ready), { text: `构建 ${plugin.BUILD_STAMP}`, mismatch: false })
-  assert.deepEqual(
-    buildStatus({ ...ready, hostBuild: 'deadbeef' }),
-    {
-      text: `构建不一致：宿主 deadbeef ≠ 前端 ${plugin.BUILD_STAMP}——两者源码快照不同，重启 dsh web 并刷新页面`,
-      mismatch: true,
-    },
-  )
+  // The stamps themselves stay out of the panel: matching builds say nothing.
+  assert.equal(buildMismatchText(ready), undefined)
   // Never polled: the host's build is simply unknown, which is not a mismatch.
-  assert.deepEqual(
-    buildStatus({ ...ready, hostBuild: undefined }),
-    { text: `构建 ${plugin.BUILD_STAMP}（宿主未上报）`, mismatch: false },
+  assert.equal(buildMismatchText({ ...ready, hostBuild: undefined }), undefined)
+  assert.match(
+    buildMismatchText({ ...ready, hostBuild: 'deadbeef' }),
+    /宿主半侧与前端不是同一份构建（宿主 deadbeef，前端 [0-9a-f]{8}）/,
   )
 
   // The store records the stamp from either outcome, so a failing host still
@@ -276,10 +271,10 @@ assert.equal(formatBalanceEntries([]), '')
   store.refresh()
   await flush()
   assert.equal(store.getSnapshot().hostBuild, 'cafebabe')
-  assert.equal(buildStatus(store.getSnapshot()).mismatch, true)
+  assert.match(buildMismatchText(store.getSnapshot()), /cafebabe/)
 }
 
 console.log(
   'balance test ok (route + backoff + jitter + store success/failure/stale + acquire/release + low-balance'
-  + ' + display states + menu detail text + build stamp)',
+  + ' + display states + menu detail text + build mismatch)',
 )

@@ -320,7 +320,7 @@ export {
   balanceTone,
   balanceUpdatedText,
   badgeBalanceText,
-  buildStatus,
+  buildMismatchText,
   createBalanceStore,
   currencySign,
   formatBalanceEntries,

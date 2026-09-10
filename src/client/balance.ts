@@ -372,22 +372,20 @@ export function balanceErrorText(error: { readonly code: string; readonly messag
 }
 
 /**
- * The build line under the balance block, and whether the two halves disagree.
+ * The warning shown only when the two halves come from different builds.
  *
- * Both halves carry a stamp of the sources they were built from; a mismatch
- * means the running host and the loaded page come from different builds — the
- * state that makes a route look missing.
+ * Both halves carry a stamp of the sources they were built from, but the stamps
+ * themselves stay out of the UI: a matching build says nothing worth a line. A
+ * mismatch does — it is the state where a route can look missing while
+ * everything else works, so it is named with what to do about it.
  * @param state - current polled state.
- * @returns the line to show, and whether it reports a mismatch.
+ * @returns the warning, or undefined while the halves agree (or before the host
+ * has reported at all).
  */
-export function buildStatus(state: BalanceState): { readonly text: string; readonly mismatch: boolean } {
+export function buildMismatchText(state: BalanceState): string | undefined {
   const host = state.hostBuild
-  if (host === undefined) return { text: `构建 ${BUILD_STAMP}（宿主未上报）`, mismatch: false }
-  if (host === BUILD_STAMP) return { text: `构建 ${BUILD_STAMP}`, mismatch: false }
-  return {
-    text: `构建不一致：宿主 ${host} ≠ 前端 ${BUILD_STAMP}——两者源码快照不同，重启 dsh web 并刷新页面`,
-    mismatch: true,
-  }
+  if (host === undefined || host === BUILD_STAMP) return undefined
+  return `宿主半侧与前端不是同一份构建（宿主 ${host}，前端 ${BUILD_STAMP}）：重启 dsh web 并刷新页面`
 }
 
 /**
