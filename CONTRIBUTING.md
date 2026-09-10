@@ -18,9 +18,10 @@ npm test              # 三个测试串行执行，全部读构建产物 lib/cli
 
 - `test/time-slot.test.mjs` — 峰/谷判定、倒计时与剩余时间
 - `test/pricing.test.mjs` — 价目表数值、调价生效时刻取档、综合单价与格式化
-- `test/balance.test.mjs` — 余额路由常量、轮询退避、状态机（成功/失败保留旧值/引用计数）与胶囊显示规则
-- `test/host.test.mjs` — 直接 import `lib/index.js` 驱动宿主半侧 `apply`：注册的精确路由、成功/失败响应、配置默认值与缺 Connection 时的降级
-- `test/menu.test.mjs` — jsdom 里真实渲染组件：菜单展开/外部点击收起/Esc 收起，并在调价前后两个伪造时刻断言菜单显示对应档位（余额轮询用进程内 stub 的 `fetch` 顶掉，`react-dom` + `jsdom` 仅测试用）
+- `test/balance.test.mjs` — 余额路由常量、轮询退避与抖动、状态机（成功/失败保留旧值/引用计数）与胶囊显示规则
+- `test/host.test.mjs` — 直接 import `lib/index.js` 驱动宿主半侧 `apply`：注册的精确路由、成功/失败响应、合并窗口、配置默认值与缺 Connection 时的降级
+- `test/menu.test.mjs` — jsdom 里真实渲染组件：菜单展开/外部点击收起/Esc 收起/焦点移入与归还，并在调价前后两个伪造时刻断言菜单显示对应档位（余额轮询用进程内 stub 的 `fetch` 顶掉，`react-dom` + `jsdom` 仅测试用）
+- `test/react-stub.mjs` — 不渲染的用例共用的 react / jsx-runtime / react-dom 桩；bundle 在 import 期就会调用 `memo`，桩缺了它会直接炸在 import 而不是断言上
 
 类型依赖说明：客户端类型（`@deepseek-ai/cordis` 的 `Context`、
 `@deepseek-ai/dsh-client-ui-conversation/client` 的会话标题栏槽位声明、

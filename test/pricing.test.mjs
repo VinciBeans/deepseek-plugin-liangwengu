@@ -10,16 +10,15 @@
  * tokens, i.e. the session's own bucket mix priced under one tier.
  */
 import assert from 'node:assert/strict'
+import { jsxRuntimeStub, reactDomStub, reactStub } from './react-stub.mjs'
 let plugin
 globalThis.window = {
   __ModuleLoader__: {
     load({ id, factory }) {
       const require = (spec) => {
-        if (spec === 'react') {
-          return { useEffect() {}, useState() {}, useLayoutEffect() {}, useRef() {} }
-        }
-        if (spec === 'react/jsx-runtime') return { jsx() {}, jsxs() {} }
-        if (spec === 'react-dom') return { createPortal() {} }
+        if (spec === 'react') return reactStub()
+        if (spec === 'react/jsx-runtime') return jsxRuntimeStub
+        if (spec === 'react-dom') return reactDomStub
         throw new Error(`unexpected require: ${spec}`)
       }
       plugin = factory(require)

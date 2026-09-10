@@ -1,28 +1,5 @@
 import type { Context as ClientContext } from '@deepseek-ai/cordis';
 import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots';
-/**
- * Beijing weekday: 0 = Sunday ... 6 = Saturday. Weekends (Sat/Sun) are
- * off-peak valley all day; workdays keep the original peak schedule.
- */
-export declare function getBeijingWeekday(date: Date): number;
-/**
- * Get the current Beijing wall-clock time as seconds since midnight.
- * Asia/Shanghai is a fixed UTC+8 (no DST since 1991), so this is pure
- * arithmetic on the epoch ms — no Intl formatter per tick, and it stays
- * correct regardless of the browser's own timezone.
- */
-export declare function getBeijingSeconds(date: Date): number;
-/** Return the badge text for a given instant. */
-export declare function getSlotLabel(date: Date): string;
-/**
- * Seconds until the current peak/valley slot ends, for a given instant.
- * A peak ends at the same day's 12:00 or 18:00; a valley runs continuously
- * until the next peak start (Friday-evening and weekend valleys therefore
- * end at Monday 09:00).
- */
-export declare function getSlotRemaining(date: Date): number;
-/** Format a second countdown as HH:MM:SS, or `Xd HH:MM:SS` when ≥ 24h. */
-export declare function formatCountdown(totalSeconds: number): string;
 /** Slot-supplied props: the session projection read seat. */
 type IndicatorProps = PropsRuntime<'conversation.session.header.utilities'>;
 /**
@@ -35,7 +12,8 @@ type IndicatorProps = PropsRuntime<'conversation.session.header.utilities'>;
  * @param props - slot runtime props; only the projection hook is used.
  */
 export declare function TimeSlotIndicator({ useProjection, sessionId }: IndicatorProps): import("react/jsx-runtime").JSX.Element;
-export { activeRevision, cacheHitRate, compositePerYiTokens, costYuan, FLASH_PRICE_CHANGE_AT, formatBeijingDateTime, formatCompactTokens, formatHitRate, formatMoney, formatRate, lookupPricing, nextRevision, OFFICIAL_MODELS, PRICING_SOURCE_URL, PRICING_UPDATED_AT, rateAt, totalTokens, } from './pricing';
+export { formatCountdown, getBeijingSeconds, getBeijingWeekday, getSlotLabel, getSlotRemaining, } from './time-slot';
+export { activeRevision, cacheHitRate, compositePerYiTokens, costYuan, FLASH_PRICE_CHANGE_AT, formatBeijingDateTime, formatCompactTokens, formatHitRate, formatMoney, formatRate, lookupPricing, nextRevision, OFFICIAL_MODELS, PRICING_SOURCE_URL, PRICING_UPDATED_AT, rateAt, tierLabel, totalTokens, } from './pricing';
 export { BALANCE_PATH, balance, balanceEmptyText, balanceErrorText, balanceTone, balanceUpdatedText, badgeBalanceText, createBalanceStore, currencySign, formatBalanceEntries, isBalanceLow, isEntryLow, jitteredDelayMs, nextPollDelayMs, } from './balance';
 /** Required services (cordis fiber inject): the slot registry. */
 export declare const inject: string[];

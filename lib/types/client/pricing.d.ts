@@ -16,6 +16,8 @@
  */
 /** The two official price tiers. */
 export type PriceTier = 'peak' | 'offPeak';
+/** Display name of a price tier, as the official page words it. */
+export declare function tierLabel(tier: PriceTier): string;
 /** One tier's rates, in 元 per million tokens. */
 export interface TierRate {
     /** Cached input (缓存命中). */

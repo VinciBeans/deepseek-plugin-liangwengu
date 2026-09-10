@@ -88,12 +88,25 @@ flowchart LR
   subgraph Src["src/"]
     HostTs["index.ts<br/>宿主：配置、凭据、路由"]
     ApiTs["balance-api.ts<br/>GET /user/balance 客户端"]
-    CIndex["client/index.tsx<br/>时段 + 胶囊 + 菜单 + apply"]
-    Pricing["client/pricing.ts<br/>价目表与计价数学"]
+    CIndex["client/index.tsx<br/>胶囊 + 面板外壳 + apply"]
+    CSlot["client/time-slot.ts<br/>时段与倒计时算术"]
+    CPricing["client/PricingTable.tsx<br/>① 官方价目表 + 调价预告"]
+    CComposite["client/CompositeSection.tsx<br/>② 本会话综合单价"]
+    CBalanceSection["client/BalanceSection.tsx<br/>③ 余额详情"]
     CBalance["client/balance.ts<br/>轮询器与显示规则"]
+    CPricingMath["client/pricing.ts<br/>价目表数据与计价数学"]
+    CStyles["client/styles.ts<br/>样式表"]
     HostTs --> ApiTs
-    CIndex --> Pricing
+    CIndex --> CSlot
+    CIndex --> CPricing
+    CIndex --> CComposite
+    CIndex --> CBalanceSection
+    CIndex --> CStyles
+    CPricing --> CPricingMath
+    CComposite --> CPricingMath
+    CBalanceSection --> CBalance
     CIndex --> CBalance
+    CSlot --> CPricingMath
   end
 
   subgraph Build["scripts/build.mjs"]
@@ -195,15 +208,20 @@ sequenceDiagram
 
 | 路径 | 职责 |
 | --- | --- |
-| `src/index.ts` | 宿主半侧：配置解析与钳制、凭据解析（服务→环境变量）、注册 `/api/liangwengu.balance`、把快照与生效配置一起下发 |
+| `src/index.ts` | 宿主半侧：配置解析与钳制、凭据解析（服务→环境变量）、注册 `/api/liangwengu.balance`、合并窗口、把快照与生效配置一起下发 |
 | `src/balance-api.ts` | `GET /user/balance` 的请求、解析、错误分类；纯函数，可脱离网络测试 |
-| `src/client/index.tsx` | 时段/倒计时纯算术、胶囊与菜单渲染、`apply` 注册槽位、打开/关闭与定位、测试用再导出 |
-| `src/client/pricing.ts` | 官方价目表（按生效时间分档）与综合单价数学、北京时间格式化 |
-| `src/client/balance.ts` | 引用计数轮询器（退避、可见性暂停、失败保留旧值）与余额显示规则（币种符号、低余额判定、色调、文案） |
+| `src/client/index.tsx` | 胶囊渲染、面板外壳（定位 / 焦点 / 关闭）、`apply` 注册槽位、测试用再导出 |
+| `src/client/time-slot.ts` | 北京时间峰谷判定、剩余时间与倒计时格式化（纯算术，无 Intl） |
+| `src/client/pricing.ts` | 官方价目表数据（按生效时间分档）、计价数学、档位标签 |
+| `src/client/PricingTable.tsx` | 菜单第一块：价目表与调价预告（`memo`，只随档位 / 生效分档 / 选中模型变化） |
+| `src/client/CompositeSection.tsx` | 菜单第二块：本会话综合单价（`memo`） |
+| `src/client/BalanceSection.tsx` | 菜单第三块：余额详情与手动刷新（`memo`） |
+| `src/client/balance.ts` | 引用计数轮询器（退避、抖动、可见性暂停、失败保留旧值）与余额显示规则 |
+| `src/client/styles.ts` | 样式表（DSW token + 兜底色，跟随 `body[data-ds-dark-theme]`） |
 | `scripts/build.mjs` | 两个半侧的 esbuild 打包 + `tsc` 出 `.d.ts` |
 | `cordis.patch.yml` | 把宿主行插进 profile 组合树（`name` 必须是包名，Node 解析才能找到） |
 | `lib/**` | 提交入库的构建产物：`index.js` / `client.js` / `types/**` |
-| `test/*.mjs` | 全部加载构建产物：时段、计价、余额状态机、宿主路由契约、jsdom 真实渲染 |
+| `test/*.mjs` | 全部加载构建产物：时段、计价、余额状态机、宿主路由契约、jsdom 真实渲染；`react-stub.mjs` 是给不渲染的用例共用的 react 桩 |
 
 ## 5. 兼容性与契约面
 

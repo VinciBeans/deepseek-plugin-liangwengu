@@ -19,14 +19,18 @@
  * reload.
  *
  * Hovering the badge deepens its colours; clicking it opens a detail menu —
- * the same shape as DSH's own token-stat dialog — whose top half is the
- * official DeepSeek price table, whose middle is this session's blended unit
- * price in 元 per 亿 tokens (computed from the session's own cache-hit mix
- * under the current slot's rates), and whose foot is the account-balance
- * detail. Clicking anywhere outside the badge or the menu, or pressing Escape,
- * closes it.
+ * the same shape as DSH's own token-stat dialog — whose blocks are the official
+ * DeepSeek price table, this session's blended unit price in 元 per 亿 tokens.
+ * and the account-balance detail. Clicking anywhere outside the badge or the
+ * menu, or pressing Escape, closes it.
+ *
+ * This module owns the badge, the panel shell (placement, focus, dismissal) and
+ * the plugin body; the slot arithmetic lives in `time-slot.ts`, the price table
+ * and blended-price math in `pricing.ts`, the balance poller and its display
+ * rules in `balance.ts`, the three menu blocks in their own components, and the
+ * stylesheet in `styles.ts`.
  */
-import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 // Type-only: pull the `slots` service declaration (Context augmentation) from
 // ui-renderer and the SlotMap merges declaring the conversation header slots
@@ -39,301 +43,18 @@ import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 // into SessionProjectionMap so the slot-supplied useProjection reads them.
 import type {} from '@deepseek-ai/dsh-token-meter/client'
 import type {} from '@deepseek-ai/dsh-api-session-controller/types'
+import { activeRevision, lookupPricing, OFFICIAL_MODELS, type OfficialModel } from './pricing'
 import {
-  activeRevision,
-  BEIJING_OFFSET_MS,
-  cacheHitRate,
-  compositePerYiTokens,
-  costYuan,
-  formatBeijingDateTime,
-  formatCompactTokens,
-  formatHitRate,
-  formatMoney,
-  formatRate,
-  lookupPricing,
-  nextRevision,
-  OFFICIAL_MODELS,
-  PRICING_UPDATED_AT,
-  rateAt,
-  totalTokens,
-  type PriceTier,
-  type RateRevision,
-} from './pricing'
-import {
-  badgeBalanceText,
-  balance,
-  balanceEmptyText,
-  balanceErrorText,
-  balanceTone,
-  balanceUpdatedText,
-  currencySign,
-  isEntryLow,
-} from './balance'
-
-// ── time-slot logic ───────────────────────────────────────────────────────
-
-const DAY_MS = 86400000
-
-/**
- * Workday peak slots, in Beijing local minutes:
- * [09:00, 12:00) and [14:00, 18:00). Weekends have no peak slots at all.
- */
-const PEAK_SLOTS: ReadonlyArray<readonly [number, number]> = [
-  [9 * 60, 12 * 60],
-  [14 * 60, 18 * 60],
-]
-
-/**
- * Beijing-time day index: 0 = 1970-01-01 (a Thursday). Pure UTC arithmetic
- * is safe because Asia/Shanghai is fixed at UTC+8.
- */
-function getBeijingDayIndex(date: Date): number {
-  return Math.floor((date.getTime() + BEIJING_OFFSET_MS) / DAY_MS)
-}
-
-/**
- * Beijing weekday: 0 = Sunday ... 6 = Saturday. Weekends (Sat/Sun) are
- * off-peak valley all day; workdays keep the original peak schedule.
- */
-export function getBeijingWeekday(date: Date): number {
-  return (getBeijingDayIndex(date) + 4) % 7
-}
-
-/**
- * Get the current Beijing wall-clock time as seconds since midnight.
- * Asia/Shanghai is a fixed UTC+8 (no DST since 1991), so this is pure
- * arithmetic on the epoch ms — no Intl formatter per tick, and it stays
- * correct regardless of the browser's own timezone.
- */
-export function getBeijingSeconds(date: Date): number {
-  const ms = date.getTime() + BEIJING_OFFSET_MS
-  return Math.floor((ms % DAY_MS) / 1000)
-}
-
-/** Minutes since Beijing midnight, on the same wall clock as {@link getBeijingSeconds}. */
-function getBeijingMinutes(date: Date): number {
-  return Math.floor(getBeijingSeconds(date) / 60)
-}
-
-/** Whether the instant falls in a peak slot (workday 09:00–12:00 / 14:00–18:00). */
-function isPeakMoment(date: Date): boolean {
-  const weekday = getBeijingWeekday(date)
-  if (weekday === 0 || weekday === 6) return false
-  const minutes = getBeijingMinutes(date)
-  return PEAK_SLOTS.some(([start, end]) => minutes >= start && minutes < end)
-}
-
-/** Return the badge text for a given instant. */
-export function getSlotLabel(date: Date): string {
-  return isPeakMoment(date) ? '当前时段：梁文峰' : '当前时段：梁文谷'
-}
-
-/**
- * UTC timestamp of the next peak-slot start: the first workday 09:00 or
- * 14:00 strictly after the given instant. During the weekend valley this
- * resolves to Monday 09:00.
- */
-function getNextPeakStartMs(date: Date): number {
-  const ms = date.getTime()
-  const dayIndex = getBeijingDayIndex(date)
-  const dayStartMs = dayIndex * DAY_MS - BEIJING_OFFSET_MS
-  for (let offset = 0; offset < 8; offset += 1) {
-    const weekday = (dayIndex + offset + 4) % 7
-    if (weekday === 0 || weekday === 6) continue
-    for (const [start] of PEAK_SLOTS) {
-      const candidate = dayStartMs + offset * DAY_MS + start * 60 * 1000
-      if (candidate > ms) return candidate
-    }
-  }
-  return ms // unreachable: within 8 days there is always a workday
-}
-
-/**
- * Seconds until the current peak/valley slot ends, for a given instant.
- * A peak ends at the same day's 12:00 or 18:00; a valley runs continuously
- * until the next peak start (Friday-evening and weekend valleys therefore
- * end at Monday 09:00).
- */
-export function getSlotRemaining(date: Date): number {
-  if (isPeakMoment(date)) {
-    const seconds = getBeijingSeconds(date)
-    const end = seconds < 12 * 3600 ? 12 * 3600 : 18 * 3600
-    return end - seconds
-  }
-  return Math.ceil((getNextPeakStartMs(date) - date.getTime()) / 1000)
-}
-
-/** Format a second countdown as HH:MM:SS, or `Xd HH:MM:SS` when ≥ 24h. */
-export function formatCountdown(totalSeconds: number): string {
-  const clamped = Math.max(0, Math.floor(totalSeconds))
-  const days = Math.floor(clamped / 86400)
-  const hours = Math.floor((clamped % 86400) / 3600)
-  const minutes = Math.floor((clamped % 3600) / 60)
-  const seconds = clamped % 60
-  const pad = (value: number) => String(value).padStart(2, '0')
-  const time = `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`
-  return days > 0 ? `${days}天 ${time}` : time
-}
-
-// ── badge visual ──────────────────────────────────────────────────────────
-
-/** The official price tier the badge's current instant falls in. */
-function tierOf(date: Date): PriceTier {
-  return isPeakMoment(date) ? 'peak' : 'offPeak'
-}
-
-/** Human label for a price tier. */
-function tierLabel(tier: PriceTier): string {
-  return tier === 'peak' ? '高峰时段' : '空闲时段'
-}
-
-const STYLE = `
-  .dsh-liangwengu-anchor { display: inline-flex; flex: none; position: relative; }
-  .dsh-liangwengu, .dsh-lwgu-panel {
-    --lwgu-bg: var(--dsw-alias-bg-layer-1, #ffffff);
-    --lwgu-panel-bg: var(--dsw-alias-bg-layer-2, #ffffff);
-    --lwgu-border: var(--dsw-alias-border-l1, rgba(0,0,0,0.12));
-    --lwgu-text: var(--dsw-alias-label-primary, #222);
-    --lwgu-sub: var(--dsw-alias-label-secondary, #8a8f99);
-    --lwgu-dim: var(--dsw-alias-label-caption, #9ca3af);
-    --lwgu-rule: var(--dsw-alias-border-l2, rgba(0,0,0,0.1));
-    --lwgu-hover: var(--dsw-alias-interactive-bg-hover-solid, #f1f3f5);
-    --lwgu-active-bg: var(--dsw-alias-interactive-bg-hover, rgba(0,0,0,0.06));
-    --lwgu-accent: var(--dsw-alias-link, #4176e6);
-    --lwgu-shadow: 0 1px 4px rgba(0,0,0,0.06);
-    --lwgu-panel-shadow: 0 8px 28px rgba(0,0,0,0.16);
-    --lwgu-peak: var(--dsw-alias-state-success-primary, #22c55e);
-    --lwgu-off: var(--dsw-alias-label-caption, #9ca3af);
-    --lwgu-warn: var(--dsw-alias-state-warn-primary, #e8a33d);
-    --lwgu-alert: var(--dsw-alias-state-error-primary, #d54941);
-  }
-  body[data-ds-dark-theme] .dsh-liangwengu,
-  body[data-ds-dark-theme] .dsh-lwgu-panel {
-    --lwgu-bg: #17181c;
-    --lwgu-panel-bg: #1c1d22;
-    --lwgu-border: rgba(255,255,255,0.14);
-    --lwgu-text: #e8e8ea;
-    --lwgu-sub: #9aa0aa;
-    --lwgu-dim: #71717a;
-    --lwgu-rule: rgba(255,255,255,0.12);
-    --lwgu-hover: #23242a;
-    --lwgu-active-bg: rgba(255,255,255,0.08);
-    --lwgu-accent: #6f9bff;
-    --lwgu-shadow: 0 1px 6px rgba(0,0,0,0.5);
-    --lwgu-panel-shadow: 0 10px 32px rgba(0,0,0,0.6);
-    --lwgu-peak: #4ade80;
-    --lwgu-off: #71717a;
-    --lwgu-warn: #e0a83c;
-    --lwgu-alert: #f2726f;
-  }
-  .dsh-liangwengu {
-    display: flex;
-    flex: none;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 1px;
-    margin: 0;
-    padding: 3px 10px;
-    border-radius: 14px;
-    background: var(--lwgu-bg);
-    border: 1px solid var(--lwgu-border);
-    box-shadow: var(--lwgu-shadow);
-    color: var(--lwgu-text);
-    font-family: inherit;
-    font-size: 12px;
-    line-height: 15px;
-    font-weight: 500;
-    white-space: nowrap;
-    cursor: pointer;
-    transition: background 120ms ease, border-color 120ms ease;
-  }
-  .dsh-liangwengu:hover { background: var(--lwgu-hover); border-color: var(--lwgu-rule); }
-  .dsh-liangwengu:focus-visible { outline: 2px solid var(--lwgu-accent); outline-offset: 1px; }
-  .dsh-lwgu-line { display: inline-flex; align-items: center; gap: 6px; }
-  .dsh-lwgu-dot {
-    width: 7px; height: 7px; border-radius: 50%; flex: none;
-    background: var(--lwgu-off);
-  }
-  .dsh-lwgu-dot[data-peak="true"] { background: var(--lwgu-peak); }
-  .dsh-lwgu-sep { color: var(--lwgu-dim); font-weight: 400; }
-  .dsh-lwgu-countdown {
-    font-size: 10px;
-    line-height: 12px;
-    color: var(--lwgu-sub);
-    font-weight: 400;
-    font-variant-numeric: tabular-nums;
-  }
-  /* The badge's lower half: the account balance, always on its own line so a
-     long amount or a warning never reflows the slot label above it. */
-  .dsh-lwgu-balance {
-    font-size: 10px;
-    line-height: 12px;
-    color: var(--lwgu-sub);
-    font-weight: 400;
-    font-variant-numeric: tabular-nums;
-  }
-  .dsh-lwgu-balance[data-tone="low"] { color: var(--lwgu-alert); font-weight: 600; }
-  .dsh-lwgu-balance[data-tone="stale"] { color: var(--lwgu-warn); }
-  .dsh-lwgu-balance[data-tone="none"] { color: var(--lwgu-dim); }
-  .dsh-lwgu-sr {
-    position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
-    overflow: hidden; clip-path: inset(50%); white-space: nowrap;
-  }
-  .dsh-lwgu-panel {
-    position: fixed; z-index: 2147483000; box-sizing: border-box; width: 300px;
-    padding: 12px 14px 14px; border-radius: 12px;
-    background: var(--lwgu-panel-bg);
-    border: 1px solid var(--lwgu-border);
-    box-shadow: var(--lwgu-panel-shadow);
-    color: var(--lwgu-text);
-    font-size: 12px; line-height: 16px;
-  }
-  .dsh-lwgu-panel:focus { outline: none; }
-  .dsh-lwgu-panel:focus-visible { outline: 2px solid var(--lwgu-accent); outline-offset: 2px; }
-  .dsh-lwgu-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
-  .dsh-lwgu-title { font-size: 12px; font-weight: 600; }
-  .dsh-lwgu-tier { color: var(--lwgu-sub); font-size: 11px; }
-  .dsh-lwgu-sub { margin-top: 2px; color: var(--lwgu-dim); font-size: 10px; line-height: 14px; }
-  .dsh-lwgu-rule { height: 1px; margin: 10px 0; background: var(--lwgu-rule); }
-  .dsh-lwgu-grid { display: grid; gap: 2px; }
-  .dsh-lwgu-grid-head, .dsh-lwgu-grid-row {
-    display: grid; grid-template-columns: minmax(0,1fr) 52px 52px 44px;
-    align-items: center; gap: 4px;
-  }
-  .dsh-lwgu-grid-head { padding: 0 6px 4px; color: var(--lwgu-dim); font-size: 10px; font-weight: 400; }
-  .dsh-lwgu-grid-head span:not(:first-child), .dsh-lwgu-grid-row span:not(:first-child) {
-    text-align: right; font-variant-numeric: tabular-nums;
-  }
-  .dsh-lwgu-grid-row {
-    margin: 0; padding: 5px 6px; border: none; border-radius: 7px;
-    background: transparent; color: inherit; font: inherit; text-align: left; cursor: pointer;
-  }
-  .dsh-lwgu-grid-row:hover { background: var(--lwgu-active-bg); }
-  .dsh-lwgu-grid-row[aria-pressed="true"] { background: var(--lwgu-active-bg); font-weight: 600; }
-  .dsh-lwgu-kv { display: flex; justify-content: space-between; gap: 12px; }
-  .dsh-lwgu-kv span:last-child { font-variant-numeric: tabular-nums; }
-  .dsh-lwgu-bal { margin-top: 4px; }
-  .dsh-lwgu-bal-amount { font-weight: 600; }
-  .dsh-lwgu-bal-amount[data-tone="low"] { color: var(--lwgu-alert); }
-  .dsh-lwgu-refresh {
-    margin: 0; padding: 0 2px; border: none; background: none;
-    color: var(--lwgu-accent); font: inherit; font-size: 11px;
-    border-radius: 4px; cursor: pointer;
-  }
-  .dsh-lwgu-refresh:hover:not(:disabled) { text-decoration: underline; }
-  .dsh-lwgu-refresh:focus-visible { outline: 2px solid var(--lwgu-accent); outline-offset: 1px; }
-  .dsh-lwgu-refresh:disabled { color: var(--lwgu-dim); cursor: default; }
-  .dsh-lwgu-composite { display: flex; align-items: baseline; gap: 6px; margin-top: 8px; }
-  .dsh-lwgu-composite-value {
-    color: var(--lwgu-accent);
-    font-size: 22px; line-height: 26px; font-weight: 600; font-variant-numeric: tabular-nums;
-  }
-  .dsh-lwgu-composite-unit { color: var(--lwgu-sub); font-size: 11px; }
-  .dsh-lwgu-note { margin-top: 6px; color: var(--lwgu-dim); font-size: 10px; line-height: 14px; }
-  @media (prefers-reduced-motion: reduce) {
-    .dsh-liangwengu { transition: none; }
-  }
-`
+  formatCountdown,
+  getSlotLabel,
+  getSlotRemaining,
+  tierOf,
+} from './time-slot'
+import { badgeBalanceText, balance, balanceTone } from './balance'
+import { BalanceSection } from './BalanceSection'
+import { CompositeSection } from './CompositeSection'
+import { PricingTable } from './PricingTable'
+import { STYLE } from './styles'
 
 /** Slot-supplied props: the session projection read seat. */
 type IndicatorProps = PropsRuntime<'conversation.session.header.utilities'>
@@ -475,15 +196,9 @@ export function TimeSlotIndicator({ useProjection, sessionId }: IndicatorProps) 
 
   const label = getSlotLabel(now)
   const countdown = formatCountdown(getSlotRemaining(now))
-  const peak = isPeakMoment(now)
   const tier = tierOf(now)
+  const peak = tier === 'peak'
   const countdownId = useId()
-
-  // Polled account balance, driving the badge's lower line (and, below the
-  // price table, the menu's detail block).
-  const balanceText = badgeBalanceText(balanceState)
-  const balanceToneValue = balanceTone(balanceState)
-  const balanceEntries = balanceState.entries ?? []
 
   const usage = useProjection('tokenUsage')
   const modelSelection = useProjection('modelSelection')
@@ -491,24 +206,13 @@ export function TimeSlotIndicator({ useProjection, sessionId }: IndicatorProps) 
   const sessionPriced = lookupPricing(sessionModelId) !== undefined
   const activeModelId = pickedModelId
     ?? (sessionModelId !== null && sessionPriced ? sessionModelId : OFFICIAL_MODELS[0].id)
-  const activeEntry = OFFICIAL_MODELS.find(entry => entry.id === activeModelId) ?? OFFICIAL_MODELS[0]
+  const activeEntry: OfficialModel = OFFICIAL_MODELS.find(entry => entry.id === activeModelId) ?? OFFICIAL_MODELS[0]
   // Resolve the revision in force right now: a scheduled official price change
   // flips the menu by itself as the per-second tick re-renders.
-  const at = now.getTime()
-  const revision = activeRevision(activeEntry.pricing, at)
-  const rate = rateAt(activeEntry.pricing, at, tier)
-  // Every model with an announced change, grouped by the revision it moves to.
-  const upcomingGroups = new Map<RateRevision, string[]>()
-  for (const entry of OFFICIAL_MODELS) {
-    const nextRev = nextRevision(entry.pricing, at)
-    if (nextRev === undefined) continue
-    upcomingGroups.set(nextRev, [...(upcomingGroups.get(nextRev) ?? []), entry.pricing.name])
-  }
+  const revision = activeRevision(activeEntry.pricing, now.getTime())
 
-  const billed = usage !== undefined && totalTokens(usage) > 0
-  const hit = usage === undefined ? null : cacheHitRate(usage)
-  const composite = billed ? compositePerYiTokens(usage, rate) : null
-  const cost = billed ? costYuan(usage, rate) : null
+  const onPickModel = useCallback((modelId: string) => { setPickedModelId(modelId) }, [])
+  const onRefreshBalance = useCallback(() => { balance.refresh() }, [])
 
   return (
     <div ref={anchorRef} className="dsh-liangwengu-anchor">
@@ -518,7 +222,7 @@ export function TimeSlotIndicator({ useProjection, sessionId }: IndicatorProps) 
         className="dsh-liangwengu"
         aria-haspopup="dialog"
         aria-expanded={open}
-        aria-label={`${label}，余额 ${balanceText}，查看定价与余额`}
+        aria-label={`${label}，余额 ${badgeBalanceText(balanceState)}，查看定价与余额`}
         aria-describedby={countdownId}
         onClick={() => { setOpen(current => !current) }}
       >
@@ -528,12 +232,14 @@ export function TimeSlotIndicator({ useProjection, sessionId }: IndicatorProps) 
           <span className="dsh-lwgu-sep" aria-hidden="true">·</span>
           <span className="dsh-lwgu-countdown" id={countdownId}>剩余 {countdown}</span>
         </span>
-        <span className="dsh-lwgu-balance" data-tone={balanceToneValue}>余额 {balanceText}</span>
+        <span className="dsh-lwgu-balance" data-tone={balanceTone(balanceState)}>
+          余额 {badgeBalanceText(balanceState)}
+        </span>
       </button>
-      {/* The button's accessible name is the slot label alone (the countdown
-          rides aria-describedby, so it is readable on demand without renaming
-          the button every second); this live region announces label changes at
-          slot boundaries. */}
+      {/* The button's accessible name carries the label and the balance (the
+          countdown rides aria-describedby, so it is readable on demand without
+          renaming the button every second); this live region announces label
+          changes at slot boundaries. */}
       <span className="dsh-lwgu-sr" aria-live="polite">{label}</span>
       {open && (
         <div
@@ -548,141 +254,22 @@ export function TimeSlotIndicator({ useProjection, sessionId }: IndicatorProps) 
             visibility: pos === null ? 'hidden' : 'visible',
           }}
         >
-          <div className="dsh-lwgu-head">
-            <span className="dsh-lwgu-title">DeepSeek 官方定价</span>
-            <span className="dsh-lwgu-tier">{tierLabel(tier)}</span>
-          </div>
-          <div className="dsh-lwgu-sub">
-            元 / 百万 tokens · {revision.effectiveFrom === 0
-              ? `价目表更新于 ${PRICING_UPDATED_AT}`
-              : `${formatBeijingDateTime(revision.effectiveFrom)} 起生效`}
-          </div>
+          <PricingTable
+            revision={revision}
+            tier={tier}
+            activeModelId={activeModelId}
+            onPick={onPickModel}
+          />
           <div className="dsh-lwgu-rule" />
-          <div className="dsh-lwgu-grid">
-            <div className="dsh-lwgu-grid-head">
-              <span>模型</span>
-              <span>缓存命中</span>
-              <span>未命中</span>
-              <span>输出</span>
-            </div>
-            {OFFICIAL_MODELS.map((entry) => {
-              const row = rateAt(entry.pricing, at, tier)
-              const active = entry.id === activeModelId
-              return (
-                <button
-                  key={entry.id}
-                  type="button"
-                  className="dsh-lwgu-grid-row"
-                  aria-pressed={active}
-                  onClick={() => { setPickedModelId(entry.id) }}
-                >
-                  <span>{entry.pricing.name}</span>
-                  <span>{formatRate(row.cacheHit)}</span>
-                  <span>{formatRate(row.cacheMiss)}</span>
-                  <span>{formatRate(row.output)}</span>
-                </button>
-              )
-            })}
-          </div>
-          {[...upcomingGroups].map(([nextRev, names]) => (
-            <div className="dsh-lwgu-note" key={names[0]}>
-              {formatBeijingDateTime(nextRev.effectiveFrom)} 起 {names.join(' / ')} 调价：
-              命中 {formatRate(nextRev[tier].cacheHit)} / 未命中 {formatRate(nextRev[tier].cacheMiss)}
-              / 输出 {formatRate(nextRev[tier].output)}（{tierLabel(tier)}）
-            </div>
-          ))}
+          <CompositeSection
+            usage={usage}
+            activeEntry={activeEntry}
+            revision={revision}
+            tier={tier}
+            sessionModelId={sessionModelId}
+          />
           <div className="dsh-lwgu-rule" />
-          <div className="dsh-lwgu-head">
-            <span className="dsh-lwgu-title">本会话综合单价</span>
-          </div>
-          {usage === undefined
-            ? <div className="dsh-lwgu-note">当前会话暂无 token 用量数据。</div>
-            : (
-              <>
-                <div className="dsh-lwgu-kv">
-                  <span>缓存命中率</span>
-                  <span>{hit === null ? '—' : `${formatHitRate(hit)}%`}</span>
-                </div>
-                <div className="dsh-lwgu-kv">
-                  <span>缓存读取</span>
-                  <span>{formatCompactTokens(usage.cacheReadTokens)}</span>
-                </div>
-                <div className="dsh-lwgu-kv">
-                  <span>未命中输入</span>
-                  <span>{formatCompactTokens(usage.uncachedInputTokens)}</span>
-                </div>
-                <div className="dsh-lwgu-kv">
-                  <span>输出</span>
-                  <span>{formatCompactTokens(usage.outputTokens)}</span>
-                </div>
-              </>
-            )}
-          <div className="dsh-lwgu-composite">
-            <span className="dsh-lwgu-composite-value">
-              {composite === null ? '—' : formatMoney(composite)}
-            </span>
-            <span className="dsh-lwgu-composite-unit">元 / 亿 tokens</span>
-          </div>
-          <div className="dsh-lwgu-note">
-            按 {activeEntry.pricing.name} · {tierLabel(tier)}单价估算
-            {cost !== null && <> · 按当前单价折算 ≈ ¥{formatMoney(cost)}</>}
-          </div>
-          {revision.effectiveFrom > 0 && (
-            <div className="dsh-lwgu-note">
-              整段会话用量统一按调价后单价折算，调价前的历史用量未分段还原。
-            </div>
-          )}
-          {sessionModelId !== null && !sessionPriced && (
-            <div className="dsh-lwgu-note">
-              当前模型 {sessionModelId} 不在官方价目表中，已改用 {activeEntry.pricing.name} 计价；
-              可点击上方模型行切换计价模型。
-            </div>
-          )}
-          <div className="dsh-lwgu-rule" />
-          <div className="dsh-lwgu-head">
-            <span className="dsh-lwgu-title">账户余额</span>
-            <button
-              type="button"
-              className="dsh-lwgu-refresh"
-              disabled={balanceState.loading}
-              onClick={() => { balance.refresh() }}
-            >
-              {balanceState.loading ? '查询中…' : '刷新'}
-            </button>
-          </div>
-          {balanceEntries.length === 0
-            ? <div className="dsh-lwgu-note">{balanceEmptyText(balanceState)}</div>
-            : (
-              <>
-                {balanceEntries.map((entry) => {
-                  const sign = currencySign(entry.currency)
-                  const low = isEntryLow(entry, balanceState.lowBalanceThreshold)
-                  return (
-                    <div className="dsh-lwgu-bal" key={entry.currency}>
-                      <div className="dsh-lwgu-kv">
-                        <span>{entry.currency} 总可用</span>
-                        <span className="dsh-lwgu-bal-amount" data-tone={low ? 'low' : 'ok'}>
-                          {sign}{entry.totalBalance}
-                        </span>
-                      </div>
-                      <div className="dsh-lwgu-note">
-                        未过期赠金 {sign}{entry.grantedBalance} · 充值余额 {sign}{entry.toppedUpBalance}
-                      </div>
-                    </div>
-                  )
-                })}
-                <div className="dsh-lwgu-note">
-                  可用：{balanceState.isAvailable === false ? '不可调用' : '可调用'}
-                  {' · '}
-                  更新于 {balanceUpdatedText(balanceState)}
-                </div>
-              </>
-            )}
-          {balanceState.lastError !== undefined && (
-            <div className="dsh-lwgu-note">
-              {balanceErrorText(balanceState.lastError)}
-            </div>
-          )}
+          <BalanceSection state={balanceState} onRefresh={onRefreshBalance} />
         </div>
       )}
     </div>
@@ -691,7 +278,16 @@ export function TimeSlotIndicator({ useProjection, sessionId }: IndicatorProps) 
 
 // ── plugin body ───────────────────────────────────────────────────────────
 
-// Re-exported so the pricing math stays testable through the built bundle.
+// Re-exported so the slot arithmetic stays testable through the built bundle.
+export {
+  formatCountdown,
+  getBeijingSeconds,
+  getBeijingWeekday,
+  getSlotLabel,
+  getSlotRemaining,
+} from './time-slot'
+
+// Same for the pricing math.
 export {
   activeRevision,
   cacheHitRate,
@@ -709,6 +305,7 @@ export {
   PRICING_SOURCE_URL,
   PRICING_UPDATED_AT,
   rateAt,
+  tierLabel,
   totalTokens,
 } from './pricing'
 
