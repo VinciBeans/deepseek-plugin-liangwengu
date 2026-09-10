@@ -29,7 +29,7 @@ globalThis.window = {
 await import(new URL('../lib/client.js', import.meta.url).href)
 
 const {
-  OFFICIAL_MODELS, PRICING_SOURCE_URL, FLASH_PRICE_CHANGE_AT, lookupPricing,
+  OFFICIAL_MODELS, PRICING_SOURCE_URL, FLASH_PRICE_CHANGE_AT, FALLBACK_MODEL_ID, lookupPricing,
   activeRevision, nextRevision, rateAt, formatBeijingDateTime, cacheHitRate,
   costYuan, compositePerYiTokens, totalTokens, formatRate, formatMoney,
   formatCompactTokens, formatHitRate,
@@ -41,6 +41,13 @@ assert.equal(OFFICIAL_MODELS.length, 4)
 assert.deepEqual(OFFICIAL_MODELS.map(entry => entry.id), [
   'deepseek-v4-flash', 'deepseek-v4-pro', 'deepseek-v4-flash-vision-exp', 'deepseek-flash',
 ])
+// The fallback is named, not positional: the array order is display order, and
+// inserting a row must not silently change which model prices a session.
+assert.deepEqual(
+  OFFICIAL_MODELS.map(entry => entry.id).filter(id => id === FALLBACK_MODEL_ID),
+  [FALLBACK_MODEL_ID],
+  'FALLBACK_MODEL_ID names exactly one model in the table',
+)
 
 const BASE_FLASH = { cacheHit: 0.05, cacheMiss: 1.5, output: 4.5 }
 const BASE_FLASH_PEAK = { cacheHit: 0.1, cacheMiss: 3, output: 9 }
@@ -162,6 +169,11 @@ assert.equal(formatRate(1.5), '1.5')
 assert.equal(formatRate(4), '4')
 assert.equal(formatRate(13.5), '13.5')
 assert.equal(formatRate(27), '27')
+// Values that are not numbers must read as "no figure", never as "NaN".
+assert.equal(formatRate(Number.NaN), '—')
+assert.equal(formatMoney(Number.NaN), '—')
+assert.equal(formatMoney(Number.POSITIVE_INFINITY), '—')
+assert.equal(formatCompactTokens(Number.NaN), '—')
 assert.equal(formatMoney(47.09090), '47.09')
 assert.equal(formatMoney(5.18), '5.18')
 assert.equal(formatCompactTokens(517), '517')

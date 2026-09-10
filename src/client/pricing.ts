@@ -65,6 +65,16 @@ export interface OfficialModel {
 /** The official price page these rates were transcribed from. */
 export const PRICING_SOURCE_URL = 'https://api-docs.deepseek.com/zh-cn/quick_start/pricing'
 
+/**
+ * Model the menu prices a session with when that session's own model is not in
+ * {@link OFFICIAL_MODELS}.
+ *
+ * Spelled out rather than `OFFICIAL_MODELS[0]`: the array order is the display
+ * order, and a fallback that silently follows it means inserting a row can
+ * change which model prices everything.
+ */
+export const FALLBACK_MODEL_ID = 'deepseek-v4-flash'
+
 /** Date the base table was last transcribed from {@link PRICING_SOURCE_URL}. */
 export const PRICING_UPDATED_AT = '2026-09-08'
 
@@ -252,19 +262,36 @@ export function compositePerYiTokens(buckets: TokenBuckets, rate: TierRate): num
   return costYuan(buckets, rate) / total * 1e8
 }
 
-/** Price text: two decimals under 1 元, otherwise up to one. */
+/**
+ * Price text: two decimals under 1 元, otherwise up to one.
+ * @param value - 元 per million tokens.
+ * @returns the text; `—` for a value that is not a number (a projection the
+ * menu cannot price), never the string `NaN`.
+ */
 export function formatRate(value: number): string {
+  if (!Number.isFinite(value)) return '—'
   if (value === 0) return '0'
   return value < 1 ? value.toFixed(2) : String(Math.round(value * 10) / 10)
 }
 
-/** Money text: two decimals, no currency symbol (元, or 元/亿 tokens for the blended price). */
+/**
+ * Money text: two decimals, no currency symbol (元, or 元/亿 tokens for the
+ * blended price).
+ * @param value - the amount in 元.
+ * @returns the text; `—` for a value that is not a number.
+ */
 export function formatMoney(value: number): string {
+  if (!Number.isFinite(value)) return '—'
   return value.toFixed(2)
 }
 
-/** Compact token count: 517 / 12.2K / 517K / 1.2M. */
+/**
+ * Compact token count: 517 / 12.2K / 517K / 1.2M.
+ * @param value - the token count.
+ * @returns the text; `—` for a value that is not a number.
+ */
 export function formatCompactTokens(value: number): string {
+  if (!Number.isFinite(value)) return '—'
   if (value < 1_000) return String(value)
   const scaled = (candidate: number): string =>
     candidate >= 100 ? String(Math.round(candidate)) : String(Math.round(candidate * 10) / 10)

@@ -67,6 +67,8 @@ dsh --profile web --dump-config          # 看到 liangwengu 层即安装成功
 
 **第一块 · 官方定价。** DeepSeek 官方价目表（元/百万 tokens），按当前时段显示对应档位——空闲时段单价恰为高峰时段的一半，而高峰时段正是本插件判定的「梁文峰」时段（北京时间周一至周五 09:00–12:00、14:00–18:00）。价目表内置在 `src/client/pricing.ts`，来源为 [DeepSeek 官方定价页](https://api-docs.deepseek.com/zh-cn/quick_start/pricing)；价格以官方页面为准，变动时更新该文件即可。
 
+> 价格是**数据**（每个模型的 `revisions` 按生效时间分档），而闲/忙时段的**窗口是代码**（`src/client/time-slot.ts` 的 `PEAK_SLOTS`）。若官方调整折扣时段，需要改代码而不只是加一行数据；只调整价格则加一条 revision 即可。
+
 > **flash 系列调价（到点自动生效）**：按官方通知，北京时间 **2026-09-10 12:00** 起 flash 系列（`deepseek-v4-flash`、`deepseek-v4-flash-vision-exp`、`deepseek-flash`）空闲时段调整为 **命中 0.02 / 未命中 1 / 输出 4 元**，高峰时段为 2 倍；`deepseek-v4-pro` 不受影响。价目表按「生效时间分档」记录，菜单每秒重算，到点自动切换为新价、无需重载页面；调价前菜单会提前显示「2026-09-10 12:00 起本模型调价」的提示。
 
 > **V4.1-Flash（`deepseek-flash`）**：与 flash 系列同价，价目表里直接复用同一组 `revisions`，因此本次 flash 系列调价同样覆盖它。
@@ -92,6 +94,8 @@ dsh --profile web --dump-config          # 看到 liangwengu 层即安装成功
 **第三块 · 余额详情（菜单最下方）。** 标题右侧是手动刷新按钮（查询中禁用）；每个币种一行「`CNY 总可用` + 金额」，其下一行给出「未过期赠金 / 充值余额」，金额低于阈值时转红；再下面一行是「可用：可调用 / 不可调用 · 更新于 HH:MM:SS」。没有任何金额可显示时（未配置密钥、查询失败、首次查询中），这里给出对应的原因与处理办法，而不是空白。轮询失败时该区块保留上一次成功值并额外标出失败原因。
 
 宿主半侧的配置项写在 `cordis.patch.yml` 该行的 `config` 下，全部可选：`intervalMs`（默认 5000，最小 1000）、`lowBalanceThreshold`（默认 10）、`apiKeyEnv`（默认 `DEEPSEEK_API_KEY`）、`baseUrl`（默认 `https://api.deepseek.com`）。宿主把生效值随每次响应下发给浏览器半侧，改配置无需重新构建。
+
+两点口径说明：阈值按**币种单位**直接比较（同一个数字对 CNY 与 USD 都生效，不按汇率折算）；界面文案只有中文——合并 `dsh-deepseek-balance` 时没有一并引入它的设置卡片、中英双语与 toast 通知，配置只能改上面的 YAML。
 
 ## 架构
 

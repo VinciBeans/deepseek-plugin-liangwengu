@@ -43,7 +43,7 @@ import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
 // into SessionProjectionMap so the slot-supplied useProjection reads them.
 import type {} from '@deepseek-ai/dsh-token-meter/client'
 import type {} from '@deepseek-ai/dsh-api-session-controller/types'
-import { activeRevision, lookupPricing, OFFICIAL_MODELS, type OfficialModel } from './pricing'
+import { activeRevision, FALLBACK_MODEL_ID, lookupPricing, OFFICIAL_MODELS, type OfficialModel } from './pricing'
 import {
   formatCountdown,
   getSlotLabel,
@@ -205,7 +205,7 @@ export function TimeSlotIndicator({ useProjection, sessionId }: IndicatorProps) 
   const sessionModelId = modelSelection?.next?.model ?? modelSelection?.lastUsed?.model ?? null
   const sessionPriced = lookupPricing(sessionModelId) !== undefined
   const activeModelId = pickedModelId
-    ?? (sessionModelId !== null && sessionPriced ? sessionModelId : OFFICIAL_MODELS[0].id)
+    ?? (sessionModelId !== null && sessionPriced ? sessionModelId : FALLBACK_MODEL_ID)
   const activeEntry: OfficialModel = OFFICIAL_MODELS.find(entry => entry.id === activeModelId) ?? OFFICIAL_MODELS[0]
   // Resolve the revision in force right now: a scheduled official price change
   // flips the menu by itself as the per-second tick re-renders.
@@ -293,6 +293,7 @@ export {
   cacheHitRate,
   compositePerYiTokens,
   costYuan,
+  FALLBACK_MODEL_ID,
   FLASH_PRICE_CHANGE_AT,
   formatBeijingDateTime,
   formatCompactTokens,

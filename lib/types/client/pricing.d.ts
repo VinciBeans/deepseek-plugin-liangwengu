@@ -55,6 +55,15 @@ export interface OfficialModel {
 }
 /** The official price page these rates were transcribed from. */
 export declare const PRICING_SOURCE_URL = "https://api-docs.deepseek.com/zh-cn/quick_start/pricing";
+/**
+ * Model the menu prices a session with when that session's own model is not in
+ * {@link OFFICIAL_MODELS}.
+ *
+ * Spelled out rather than `OFFICIAL_MODELS[0]`: the array order is the display
+ * order, and a fallback that silently follows it means inserting a row can
+ * change which model prices everything.
+ */
+export declare const FALLBACK_MODEL_ID = "deepseek-v4-flash";
 /** Date the base table was last transcribed from {@link PRICING_SOURCE_URL}. */
 export declare const PRICING_UPDATED_AT = "2026-09-08";
 /**
@@ -138,11 +147,25 @@ export declare function costYuan(buckets: TokenBuckets, rate: TierRate): number;
  * @returns 元 per 100 million tokens; 0 when nothing was billed.
  */
 export declare function compositePerYiTokens(buckets: TokenBuckets, rate: TierRate): number;
-/** Price text: two decimals under 1 元, otherwise up to one. */
+/**
+ * Price text: two decimals under 1 元, otherwise up to one.
+ * @param value - 元 per million tokens.
+ * @returns the text; `—` for a value that is not a number (a projection the
+ * menu cannot price), never the string `NaN`.
+ */
 export declare function formatRate(value: number): string;
-/** Money text: two decimals, no currency symbol (元, or 元/亿 tokens for the blended price). */
+/**
+ * Money text: two decimals, no currency symbol (元, or 元/亿 tokens for the
+ * blended price).
+ * @param value - the amount in 元.
+ * @returns the text; `—` for a value that is not a number.
+ */
 export declare function formatMoney(value: number): string;
-/** Compact token count: 517 / 12.2K / 517K / 1.2M. */
+/**
+ * Compact token count: 517 / 12.2K / 517K / 1.2M.
+ * @param value - the token count.
+ * @returns the text; `—` for a value that is not a number.
+ */
 export declare function formatCompactTokens(value: number): string;
 /**
  * Cache-hit percentage text, honest about near-full hits.
