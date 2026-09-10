@@ -288,6 +288,8 @@ const STYLE = `
     color: var(--lwgu-text);
     font-size: 12px; line-height: 16px;
   }
+  .dsh-lwgu-panel:focus { outline: none; }
+  .dsh-lwgu-panel:focus-visible { outline: 2px solid var(--lwgu-accent); outline-offset: 2px; }
   .dsh-lwgu-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
   .dsh-lwgu-title { font-size: 12px; font-weight: 600; }
   .dsh-lwgu-tier { color: var(--lwgu-sub); font-size: 11px; }
@@ -352,6 +354,8 @@ export function TimeSlotIndicator({ useProjection, sessionId }: IndicatorProps) 
   const [pos, setPos] = useState<{ left: number; top: number } | null>(null)
   const anchorRef = useRef<HTMLDivElement | null>(null)
   const panelRef = useRef<HTMLDivElement | null>(null)
+  /** Element focus returns to when the menu closes; null while it is closed. */
+  const restoreFocusRef = useRef<HTMLElement | null>(null)
 
   // A pricing model picked for one Session must not leak into the next one.
   useEffect(() => { setPickedModelId(null) }, [sessionId])
@@ -422,6 +426,31 @@ export function TimeSlotIndicator({ useProjection, sessionId }: IndicatorProps) 
       window.removeEventListener('scroll', place, true)
     }
   }, [open])
+
+  // Focus bookkeeping: the menu is a NON-modal dialog (the page behind stays
+  // usable and an outside click closes it), so focus is not trapped — but it
+  // must enter the panel on open, or a keyboard user cannot reach the model
+  // rows and the refresh button without tabbing through the whole page first,
+  // and it must come back to the badge on close.
+  useLayoutEffect(() => {
+    if (open) {
+      if (restoreFocusRef.current === null) {
+        const active = document.activeElement
+        restoreFocusRef.current = active instanceof HTMLElement ? active : null
+      }
+      return
+    }
+    const target = restoreFocusRef.current
+    restoreFocusRef.current = null
+    if (target !== null && document.contains(target)) target.focus()
+  }, [open])
+
+  // The panel starts hidden (it has no measured position yet), and a hidden
+  // element cannot take focus — so focus waits for the placement pass above to
+  // publish a position, which lands in the very next render.
+  useLayoutEffect(() => {
+    if (open && pos !== null) panelRef.current?.focus()
+  }, [open, pos])
 
   // Outside pointerdown and Escape close, exactly as DSH's own stat dialog.
   useEffect(() => {
@@ -512,6 +541,7 @@ export function TimeSlotIndicator({ useProjection, sessionId }: IndicatorProps) 
           className="dsh-lwgu-panel"
           role="dialog"
           aria-label="DeepSeek 定价与综合单价"
+          tabIndex={-1}
           style={{
             left: pos?.left ?? 0,
             top: pos?.top ?? 0,

@@ -171,11 +171,19 @@ try {
     assert.equal(button.getAttribute('aria-expanded'), 'false')
     assert.ok(document.querySelector('.dsh-lwgu-panel') === null, 'menu starts closed')
 
+    // A keyboard user reaches the badge with Tab; the menu must take focus from
+    // there and give it back on close. (DOM nodes are compared as booleans: a
+    // failing assert.equal on a React-owned node makes Node deep-inspect the
+    // fiber and die with an allocation error instead of reporting.)
+    button.focus()
+    assert.ok(document.activeElement === button, 'the badge is focusable')
     button.dispatchEvent(new window.MouseEvent('click', { bubbles: true }))
     await tick()
     const panel = document.querySelector('.dsh-lwgu-panel')
     assert.ok(panel !== null, 'click opens the menu')
     assert.equal(button.getAttribute('aria-expanded'), 'true')
+    assert.equal(panel.getAttribute('tabindex'), '-1', 'the panel is focusable without joining the tab order')
+    assert.ok(document.activeElement === panel, 'opening the menu moves focus into it')
     const text = panel.textContent
     assert.ok(text.includes('DeepSeek 官方定价'), 'menu shows the pricing heading')
     assert.ok(text.includes('缓存命中') && text.includes('未命中') && text.includes('输出'), 'menu shows the rate columns')
@@ -223,6 +231,7 @@ try {
     outside.dispatchEvent(new window.Event('pointerdown', { bubbles: true }))
     await tick()
     assert.ok(document.querySelector('.dsh-lwgu-panel') === null, 'outside pointerdown closes the menu')
+    assert.ok(document.activeElement === button, 'closing returns focus to the badge')
     outside.remove()
   }
 
