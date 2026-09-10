@@ -92,6 +92,12 @@ dsh --profile web --dump-config          # 看到 liangwengu 层即安装成功
 
 宿主半侧的配置项写在 `cordis.patch.yml` 该行的 `config` 下，全部可选：`intervalMs`（默认 5000，最小 1000）、`lowBalanceThreshold`（默认 10）、`apiKeyEnv`（默认 `DEEPSEEK_API_KEY`）、`baseUrl`（默认 `https://api.deepseek.com`）。宿主把生效值随每次响应下发给浏览器半侧，改配置无需重新构建。
 
+## 架构
+
+宿主半侧只做一件事：把 DeepSeek 账户余额安全地送到浏览器（Connection 共享 `/api` 通道上的精确路由 + 凭据服务按引用解析 key）；浏览器半侧是唯一渲染面（会话标题栏胶囊 + 点击展开的详情菜单）；`lib/` 是提交入库的构建产物，CI 用 `git diff --exit-code -- lib` 防漂移。
+
+进程拓扑、模块与构建、客户端组件数据流、一次余额轮询的时序图，以及各目录职责与消费的 DSH 契约面，见 [`docs/architecture.md`](docs/architecture.md)。
+
 ## 兼容性
 
 **兼容性政策：** 本插件只跟随当前一代 dsh 客户端插件契约（`dsh.client` 声明 + `window.__ModuleLoader__.load({ id, factory })` + `ctx.slots` 注册面 + 平台 seed 表）。上游一旦出现破坏性变更，插件**只跟进新版本，不再为旧版本维护兼容性**：不保留兼容分支、不做双份实现、不为旧版本回溯修复；被放弃的版本会从下面的「支持」列表移出，同时从 CI 矩阵删除。
