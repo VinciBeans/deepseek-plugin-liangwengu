@@ -79,16 +79,16 @@ for (const sample of [0, 0.25, 0.5, 0.75, 1]) {
 }
 
 // ── currency and entry formatting ──────────────────────────────────────────
-assert.equal(currencySign('CNY'), '¥')
+assert.equal(currencySign('CNY'), '￥')
 assert.equal(currencySign('USD'), '$')
 assert.equal(currencySign('EUR'), 'EUR ')
-assert.equal(formatBalanceEntries(SNAPSHOT.entries), '¥110.00')
+assert.equal(formatBalanceEntries(SNAPSHOT.entries), '￥110.00')
 assert.equal(
   formatBalanceEntries([
     ...SNAPSHOT.entries,
     { currency: 'USD', totalBalance: '5.00', grantedBalance: '0.00', toppedUpBalance: '5.00' },
   ]),
-  '¥110.00 · $5.00',
+  '￥110.00 · $5.00',
 )
 assert.equal(formatBalanceEntries([]), '')
 
@@ -119,7 +119,7 @@ assert.equal(formatBalanceEntries([]), '')
   assert.equal(warmed.lastError, undefined)
   // The host's knobs replace this plugin's defaults.
   assert.equal(warmed.pollIntervalMs, 30_000)
-  assert.equal(badgeBalanceText(warmed), '¥110.00')
+  assert.equal(badgeBalanceText(warmed), '￥110.00')
   assert.equal(balanceTone(warmed), 'ok')
 
   answer = { ok: false, error: { code: 'network', message: 'boom' } }
@@ -130,7 +130,7 @@ assert.equal(formatBalanceEntries([]), '')
   assert.deepEqual(failed.lastError, { code: 'network', message: 'boom' })
   // Stale, not blank: the last good amount survives and is flagged.
   assert.deepEqual(failed.entries, SNAPSHOT.entries)
-  assert.equal(badgeBalanceText(failed), '¥110.00 ⚠')
+  assert.equal(badgeBalanceText(failed), '￥110.00 ⚠')
   assert.equal(balanceTone(failed), 'stale')
 
   answer = { ok: true, value: SNAPSHOT }
@@ -200,7 +200,7 @@ assert.equal(formatBalanceEntries([]), '')
   }
   assert.equal(isBalanceLow(low), true)
   assert.equal(balanceTone(low), 'low')
-  assert.equal(badgeBalanceText(low), '¥3.20 ⚠')
+  assert.equal(badgeBalanceText(low), '￥3.20 ⚠')
   // At the threshold is not below it.
   assert.equal(isBalanceLow({ ...low, entries: [{ ...entry, totalBalance: '10.00' }] }), false)
   assert.equal(isEntryLow({ ...entry, totalBalance: '10.00' }, 10), false)

@@ -146,11 +146,9 @@ flowchart LR
 flowchart TB
   subgraph Slot["conversation.session.header.utilities（order: -1）"]
     Badge["button.dsh-liangwengu<br/>aria-haspopup=dialog"]
-    Line1["第一行：● 当前时段：梁文峰 · 剩余 01:23:45"]
-    Line2["第二行：余额 ¥110.00<br/>data-tone = ok | low | stale | none"]
+    Line["一行：● 当前时段：梁文峰 · 剩余 01:23:45 | 余额 ￥110.00<br/>余额段 data-tone = ok | low | stale | none"]
     Panel["div.dsh-lwgu-panel（role=dialog, position: fixed）"]
-    Badge --> Line1
-    Badge --> Line2
+    Badge --> Line
     Badge -->|click| Panel
   end
 
@@ -162,10 +160,10 @@ flowchart TB
   end
   Panel --> P1
 
-  Tick["每秒 tick（对齐秒边界）"] --> Line1
+  Tick["每秒 tick（对齐秒边界）"] --> Line
   Tick --> P1
   Projections["useProjection('tokenUsage')<br/>useProjection('modelSelection')"] --> P2
-  Store["balance store.getSnapshot()"] --> Line2
+  Store["balance store.getSnapshot()"] --> Line
   Store --> P3
   Store -->|refresh| P3
 ```
@@ -196,11 +194,11 @@ sequenceDiagram
   H-->>C: 200 { ok: true, value: { entries, pollIntervalMs, lowBalanceThreshold } }
   C-->>S: JSON
   S->>S: 写状态 + 通知订阅者
-  S-->>B: 重渲染 → 第二行显示金额
+  S-->>B: 重渲染 → 行内余额段更新
   S->>S: 排下一次（interval / 退避；页面隐藏则暂停）
 
   Note over H,D: 任何失败都回 200 { ok:false, error:{ code, message } }<br/>code ∈ no-key | unauthorized | network | api | invalid-response
-  Note over S: 失败保留上一次成功值（第二行转黄并标 ⚠），<br/>从未成功则显示 查询中… / 未配置密钥 / 查询失败
+  Note over S: 失败保留上一次成功值（余额段转黄并标 ⚠），<br/>从未成功则显示 查询中… / 未配置密钥 / 查询失败
   Note over U,S: 菜单里的「刷新」按钮走同一个轮询器（查询中禁用）
 ```
 

@@ -116,7 +116,7 @@ export declare function currencySign(currency: string): string;
 /**
  * The badge's amount text for one account's entries.
  * @param entries - successful snapshot entries, in wire order.
- * @returns e.g. `¥110.00` or `¥110.00 · $5.00`; an empty string when there are none.
+ * @returns e.g. `￥110.00` or `￥110.00 · $5.00`; an empty string when there are none.
  */
 export declare function formatBalanceEntries(entries: readonly BalanceEntry[]): string;
 /** Whether one entry sits below the low-balance threshold. */

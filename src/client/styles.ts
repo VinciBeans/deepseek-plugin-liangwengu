@@ -47,14 +47,15 @@ export const STYLE = `
     --lwgu-warn: #e0a83c;
     --lwgu-alert: #f2726f;
   }
+  /* One line: the badge is a status chip in the header's utilities row, so it
+     stays a single row of facts instead of growing a second line. */
   .dsh-liangwengu {
-    display: flex;
+    display: inline-flex;
     flex: none;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 1px;
+    align-items: center;
+    gap: 6px;
     margin: 0;
-    padding: 3px 10px;
+    padding: 4px 10px;
     border-radius: 14px;
     background: var(--lwgu-bg);
     border: 1px solid var(--lwgu-border);
@@ -70,7 +71,6 @@ export const STYLE = `
   }
   .dsh-liangwengu:hover { background: var(--lwgu-hover); border-color: var(--lwgu-rule); }
   .dsh-liangwengu:focus-visible { outline: 2px solid var(--lwgu-accent); outline-offset: 1px; }
-  .dsh-lwgu-line { display: inline-flex; align-items: center; gap: 6px; }
   .dsh-lwgu-dot {
     width: 7px; height: 7px; border-radius: 50%; flex: none;
     background: var(--lwgu-off);
@@ -84,8 +84,8 @@ export const STYLE = `
     font-weight: 400;
     font-variant-numeric: tabular-nums;
   }
-  /* The badge's lower half: the account balance, always on its own line so a
-     long amount or a warning never reflows the slot label above it. */
+  /* The account fact, after the separator: one size down from the label, so the
+     row still reads label → countdown → balance. */
   .dsh-lwgu-balance {
     font-size: 10px;
     line-height: 12px;

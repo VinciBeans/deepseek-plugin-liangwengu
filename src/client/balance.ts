@@ -273,7 +273,7 @@ export const balance: BalanceStore = createBalanceStore()
 /** Currency sign for the compact badge line; unknown codes keep their own name. */
 export function currencySign(currency: string): string {
   switch (currency) {
-    case 'CNY': return '¥'
+    case 'CNY': return '￥'
     case 'USD': return '$'
     default: return `${currency} `
   }
@@ -282,7 +282,7 @@ export function currencySign(currency: string): string {
 /**
  * The badge's amount text for one account's entries.
  * @param entries - successful snapshot entries, in wire order.
- * @returns e.g. `¥110.00` or `¥110.00 · $5.00`; an empty string when there are none.
+ * @returns e.g. `￥110.00` or `￥110.00 · $5.00`; an empty string when there are none.
  */
 export function formatBalanceEntries(entries: readonly BalanceEntry[]): string {
   return entries.map(entry => `${currencySign(entry.currency)}${entry.totalBalance}`).join(' · ')

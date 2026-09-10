@@ -2,13 +2,13 @@
  * 梁文谷 — browser half.
  *
  * Renders a small badge at the top-right corner of the DeepSeek Harness Web
- * GUI showing the current official compute time-slot together with a live
- * countdown of the remaining time of that slot, and — on its lower line — the
- * DeepSeek account balance polled through the host half's `/api` route:
+ * GUI as one line of status — the current official compute time-slot, its live
+ * countdown, and the DeepSeek account balance polled through the host half's
+ * `/api` route:
  *
  *   - workdays (Mon–Fri) 09:00–12:00 and 14:00–18:00 → 「当前时段：梁文峰」
  *   - all other times, incl. the whole weekend      → 「当前时段：梁文谷」
- *   - lower line                                    → 「余额 ¥110.00」
+ *   - after the `|`                                 → 「余额 ￥110.00」
  *
  * 周末（周六/周日）全天为低谷期：谷期从周五 18:00 起连续运行到周一 09:00
  * 峰期开始，倒计时跨天计算（≥24h 时以 `X天 HH:MM:SS` 显示）。
@@ -226,12 +226,14 @@ export function TimeSlotIndicator({ useProjection, sessionId }: IndicatorProps) 
         aria-describedby={countdownId}
         onClick={() => { setOpen(current => !current) }}
       >
-        <span className="dsh-lwgu-line">
-          <span className="dsh-lwgu-dot" data-peak={peak ? 'true' : 'false'} />
-          <span>{label}</span>
-          <span className="dsh-lwgu-sep" aria-hidden="true">·</span>
-          <span className="dsh-lwgu-countdown" id={countdownId}>剩余 {countdown}</span>
-        </span>
+        {/* One line, three facts: the slot label (with its peak/valley dot), the
+            countdown, and the balance — the `·` groups the slot facts, the `|`
+            separates the account fact from them. */}
+        <span className="dsh-lwgu-dot" data-peak={peak ? 'true' : 'false'} />
+        <span>{label}</span>
+        <span className="dsh-lwgu-sep" aria-hidden="true">·</span>
+        <span className="dsh-lwgu-countdown" id={countdownId}>剩余 {countdown}</span>
+        <span className="dsh-lwgu-sep" aria-hidden="true">|</span>
         <span className="dsh-lwgu-balance" data-tone={balanceTone(balanceState)}>
           余额 {badgeBalanceText(balanceState)}
         </span>

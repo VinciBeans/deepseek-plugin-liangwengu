@@ -165,9 +165,13 @@ try {
     const expected = plugin.rateAt(flash, at, 'peak')
     const { button } = await mount(at)
 
-    assert.match(button.textContent, /当前时段：梁文(谷|峰)/, 'badge shows the slot label')
-    assert.ok(button.textContent.includes('剩余'), 'badge shows the countdown')
-    assert.ok(button.textContent.includes('余额 ¥110.00'), 'badge lower line shows the polled balance')
+    // One line, in this order: slot label · countdown | balance. The gaps around
+    // the separators are CSS, so the text content itself has no spaces there.
+    assert.match(
+      button.textContent,
+      /^当前时段：梁文(峰|谷)·剩余 \d{2}:\d{2}:\d{2}\|余额 ￥110\.00$/,
+      'the badge reads as one line of label · countdown | balance',
+    )
     assert.ok(balanceCalls > 0, 'mounting the badge starts the balance poll')
     assert.equal(button.getAttribute('aria-haspopup'), 'dialog')
     assert.equal(button.getAttribute('aria-expanded'), 'false')
@@ -209,9 +213,9 @@ try {
 
     // ── the balance detail block sits at the very foot of the panel ────────
     assert.ok(text.includes('账户余额'), 'menu shows the balance heading')
-    assert.ok(text.includes('CNY 总可用') && text.includes('¥110.00'), 'menu shows the total balance per currency')
+    assert.ok(text.includes('CNY 总可用') && text.includes('￥110.00'), 'menu shows the total balance per currency')
     assert.ok(
-      text.includes('未过期赠金 ¥0.00 · 充值余额 ¥110.00'),
+      text.includes('未过期赠金 ￥0.00 · 充值余额 ￥110.00'),
       'menu splits granted and topped-up balance',
     )
     assert.ok(text.includes('可用：可调用'), 'menu reports whether the account can still call the API')
