@@ -19,6 +19,7 @@ npm test              # 三个测试串行执行，全部读构建产物 lib/cli
 - `test/time-slot.test.mjs` — 峰/谷判定、倒计时与剩余时间
 - `test/pricing.test.mjs` — 价目表数值、调价生效时刻取档、综合单价与格式化
 - `test/balance.test.mjs` — 余额路由常量、轮询退避、状态机（成功/失败保留旧值/引用计数）与胶囊显示规则
+- `test/host.test.mjs` — 直接 import `lib/index.js` 驱动宿主半侧 `apply`：注册的精确路由、成功/失败响应、配置默认值与缺 Connection 时的降级
 - `test/menu.test.mjs` — jsdom 里真实渲染组件：菜单展开/外部点击收起/Esc 收起，并在调价前后两个伪造时刻断言菜单显示对应档位（余额轮询用进程内 stub 的 `fetch` 顶掉，`react-dom` + `jsdom` 仅测试用）
 
 类型依赖说明：客户端类型（`@deepseek-ai/cordis` 的 `Context`、
@@ -49,6 +50,8 @@ typecheck + build + test，各自 pin 到固定 commit。
 ## 构建产物
 
 `lib/` 随仓库提交，克隆即可安装使用；改 `src/` 后重新构建。
+
+两个半侧的生效方式不同：宿主半侧 `lib/index.js` 由 `dsh web` **启动时导入一次**，改完必须重启 web 进程；浏览器半侧 `lib/client.js` 由 client-modules 从磁盘读取并提供给页面，刷新页面即可。宿主半侧比 `lib/index.js` 旧时的典型症状是余额路由 404——胶囊与菜单会显示「宿主通道不可用（HTTP 404）」。
 
 ## 工作原理
 

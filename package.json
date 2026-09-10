@@ -32,7 +32,7 @@
     "build": "node scripts/build.mjs",
     "prepack": "npm run build",
     "typecheck": "tsc --noEmit",
-    "test": "node test/time-slot.test.mjs && node test/pricing.test.mjs && node test/balance.test.mjs && node test/menu.test.mjs"
+    "test": "node test/time-slot.test.mjs && node test/pricing.test.mjs && node test/balance.test.mjs && node test/host.test.mjs && node test/menu.test.mjs"
   },
   "license": "MIT",
   "devDependencies": {
