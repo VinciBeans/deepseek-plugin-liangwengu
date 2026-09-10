@@ -48,6 +48,15 @@ const DEFAULT_TIMEOUT_MS = 10_000
 /** This plugin's exact route below Connection's `/api` carrier. */
 const BALANCE_PATH = '/api/liangwengu.balance'
 
+/**
+ * Window within which every browser tab shares one upstream query.
+ *
+ * Each tab polls on its own timer, so without a window N open tabs mean N
+ * upstream queries per interval — enough to walk into DeepSeek's rate limits
+ * for an amount that no tab needs fresher than this window.
+ */
+const COALESCE_MS = 1_500
+
 // ---------------------------------------------------------------------------
 // Minimal structural typings. The services below are seams the DSH install
 // provides; the packages are not imported (the node bundle stays
@@ -152,6 +161,25 @@ function asFailure(error: unknown): RpcFailure {
  */
 export async function apply(ctx: HostCtx, config: PluginConfig = {}): Promise<void> {
   const resolved = resolveConfig(config)
+
+  /**
+   * The most recent query, shared by every request inside {@link COALESCE_MS}.
+   *
+   * Both halves of the pair matter: an in-flight promise deduplicates tabs that
+   * poll at the same moment, and the timestamp deduplicates tabs whose timers
+   * are offset by less than the window. A failure is shared too — retrying a
+   * rejected key or a down endpoint once per tab would multiply the outage.
+   */
+  let recent: { readonly at: number; readonly snapshot: Promise<BalanceSnapshot> } | undefined
+
+  const queryRecent = (): Promise<BalanceSnapshot> => {
+    const now = Date.now()
+    if (recent !== undefined && now - recent.at < COALESCE_MS) return recent.snapshot
+    const snapshot = querySnapshot(ctx, resolved)
+    recent = { at: now, snapshot }
+    return snapshot
+  }
+
   try {
     const connection = ctx.connection
     if (connection === undefined) {
@@ -164,7 +192,7 @@ export async function apply(ctx: HostCtx, config: PluginConfig = {}): Promise<vo
       requestBody: 'buffered',
       fetch: async () => {
         try {
-          const snapshot = await querySnapshot(ctx, resolved)
+          const snapshot = await queryRecent()
           return Response.json(
             { ok: true, value: { ...snapshot, ...pollKnobs(resolved) } },
             { headers: { 'cache-control': 'no-store' } },

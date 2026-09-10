@@ -36,7 +36,7 @@ type IndicatorProps = PropsRuntime<'conversation.session.header.utilities'>;
  */
 export declare function TimeSlotIndicator({ useProjection, sessionId }: IndicatorProps): import("react/jsx-runtime").JSX.Element;
 export { activeRevision, cacheHitRate, compositePerYiTokens, costYuan, FLASH_PRICE_CHANGE_AT, formatBeijingDateTime, formatCompactTokens, formatHitRate, formatMoney, formatRate, lookupPricing, nextRevision, OFFICIAL_MODELS, PRICING_SOURCE_URL, PRICING_UPDATED_AT, rateAt, totalTokens, } from './pricing';
-export { BALANCE_PATH, balance, balanceEmptyText, balanceErrorText, balanceTone, balanceUpdatedText, badgeBalanceText, createBalanceStore, currencySign, formatBalanceEntries, isBalanceLow, isEntryLow, nextPollDelayMs, } from './balance';
+export { BALANCE_PATH, balance, balanceEmptyText, balanceErrorText, balanceTone, balanceUpdatedText, badgeBalanceText, createBalanceStore, currencySign, formatBalanceEntries, isBalanceLow, isEntryLow, jitteredDelayMs, nextPollDelayMs, } from './balance';
 /** Required services (cordis fiber inject): the slot registry. */
 export declare const inject: string[];
 /**

@@ -33,7 +33,7 @@ await import(new URL('../lib/client.js', import.meta.url).href)
 const {
   BALANCE_PATH, badgeBalanceText, balanceEmptyText, balanceErrorText, balanceTone,
   balanceUpdatedText, createBalanceStore, currencySign, formatBalanceEntries,
-  isBalanceLow, isEntryLow, nextPollDelayMs,
+  isBalanceLow, isEntryLow, jitteredDelayMs, nextPollDelayMs,
 } = plugin
 
 /** Let a poll's promise chain (callStatus → state write) settle. */
@@ -65,6 +65,19 @@ assert.equal(nextPollDelayMs(9, 5_000), 30_000)
 assert.equal(nextPollDelayMs(1, 30_000), 60_000)
 assert.equal(nextPollDelayMs(2, 30_000), 90_000)
 assert.equal(nextPollDelayMs(3, 30_000), 120_000)
+
+// ── jitter: ±10%, and never a phase that is not spread ─────────────────────
+// Independent tabs must not poll in lockstep, but the spread stays bounded so
+// the configured interval keeps meaning what it says.
+assert.equal(jitteredDelayMs(5_000, () => 0), 4_500)
+assert.equal(jitteredDelayMs(5_000, () => 0.5), 5_000)
+assert.equal(jitteredDelayMs(5_000, () => 1), 5_500)
+assert.equal(jitteredDelayMs(0, () => 0.5), 0)
+assert.equal(jitteredDelayMs(4, () => 0.999), 4, 'a delay too small to spread is left alone')
+for (const sample of [0, 0.25, 0.5, 0.75, 1]) {
+  const jittered = jitteredDelayMs(30_000, () => sample)
+  assert.ok(jittered >= 27_000 && jittered <= 33_000, `30s stays within ±10% (got ${jittered})`)
+}
 
 // ── currency and entry formatting ──────────────────────────────────────────
 assert.equal(currencySign('CNY'), '¥')

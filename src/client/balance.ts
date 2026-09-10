@@ -96,6 +96,26 @@ export function nextPollDelayMs(failureCount: number, intervalMs: number): numbe
   return Math.max((tier + 1) * intervalMs, tier * 10_000)
 }
 
+/** Spread of one scheduled delay: ±10%. */
+const JITTER_RATIO = 0.1
+
+/**
+ * Spread one scheduled delay so independent tabs do not poll in lockstep.
+ *
+ * Every tab runs its own timer from its own mount instant; without jitter they
+ * drift into the same phase and hit the host (and DeepSeek behind it) in
+ * bursts. Jitter moves the timer only — `pollIntervalMs` in the state stays the
+ * configured value.
+ * @param delayMs - the scheduled delay.
+ * @param random - injectable RNG in `[0, 1)` (tests).
+ * @returns a delay within ±10% of the input.
+ */
+export function jitteredDelayMs(delayMs: number, random: () => number = Math.random): number {
+  const spread = Math.round(delayMs * JITTER_RATIO)
+  if (spread === 0) return delayMs
+  return delayMs - spread + Math.round(random() * spread * 2)
+}
+
 /** Query the host's balance route; never throws, always answers a result shape. */
 async function callBalanceStatus(): Promise<BalancePollResult> {
   try {
@@ -154,7 +174,8 @@ export function createBalanceStore(
   const arm = (): void => {
     clearTimer()
     if (!running) return
-    timer = setTimeout(() => { void poll().then(arm) }, nextPollDelayMs(state.failureCount, state.pollIntervalMs))
+    const delay = jitteredDelayMs(nextPollDelayMs(state.failureCount, state.pollIntervalMs))
+    timer = setTimeout(() => { void poll().then(arm) }, delay)
   }
 
   const poll = async (): Promise<void> => {

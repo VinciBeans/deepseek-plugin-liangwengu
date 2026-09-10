@@ -153,6 +153,56 @@ const request = () => new Request('http://localhost/api/liangwengu.balance', { m
   }
 }
 
+// ── coalescing: tabs polling together share one upstream query ─────────────
+{
+  const realFetch = globalThis.fetch
+  const realNow = Date.now
+  let upstream = 0
+  let keyLookups = 0
+  globalThis.fetch = async () => {
+    upstream += 1
+    return new Response(JSON.stringify({ is_available: true, balance_infos: [] }), { status: 200 })
+  }
+  let clock = 1_000_000
+  Date.now = () => clock
+  try {
+    const credentials = { resolve: async () => { keyLookups += 1; return { value: 'sk-any' } } }
+    const { ctx, registered } = makeCtx({ credentials })
+    await host.apply(ctx, {})
+
+    // Two tabs polling at the same moment plus a third right after it.
+    await Promise.all([registered[0].fetch(request()), registered[0].fetch(request())])
+    await registered[0].fetch(request())
+    assert.equal(upstream, 1, 'requests inside the window share one upstream query')
+    assert.equal(keyLookups, 1, 'and one credential resolution')
+
+    // Past the window the next request reaches upstream again.
+    clock += 2_000
+    await registered[0].fetch(request())
+    assert.equal(upstream, 2, 'the window expires and polling resumes')
+    assert.equal(keyLookups, 2)
+  } finally {
+    globalThis.fetch = realFetch
+    Date.now = realNow
+  }
+
+  // A failure is shared too: an outage must not be retried once per tab.
+  globalThis.fetch = async () => new Response('nope', { status: 401 })
+  let rejectedLookups = 0
+  try {
+    const credentials = { resolve: async () => { rejectedLookups += 1; return { value: 'sk-bad' } } }
+    const { ctx, registered } = makeCtx({ credentials })
+    await host.apply(ctx, {})
+    const first = await (await registered[0].fetch(request())).json()
+    const second = await (await registered[0].fetch(request())).json()
+    assert.equal(first.error.code, 'unauthorized')
+    assert.deepEqual(second, first, 'the shared failure answers the second tab identically')
+    assert.equal(rejectedLookups, 1, 'a rejected key is not re-resolved for every tab')
+  } finally {
+    globalThis.fetch = realFetch
+  }
+}
+
 // ── config defaults and clamping ───────────────────────────────────────────
 {
   const credentials = { resolve: async () => ({ value: 'sk-any' }) }

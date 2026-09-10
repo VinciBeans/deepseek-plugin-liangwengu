@@ -726,6 +726,7 @@ export {
   formatBalanceEntries,
   isBalanceLow,
   isEntryLow,
+  jitteredDelayMs,
   nextPollDelayMs,
 } from './balance'
 

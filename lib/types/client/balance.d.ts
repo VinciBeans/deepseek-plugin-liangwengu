@@ -86,6 +86,18 @@ export declare const DEFAULT_LOW_BALANCE_THRESHOLD = 10;
  */
 export declare function nextPollDelayMs(failureCount: number, intervalMs: number): number;
 /**
+ * Spread one scheduled delay so independent tabs do not poll in lockstep.
+ *
+ * Every tab runs its own timer from its own mount instant; without jitter they
+ * drift into the same phase and hit the host (and DeepSeek behind it) in
+ * bursts. Jitter moves the timer only — `pollIntervalMs` in the state stays the
+ * configured value.
+ * @param delayMs - the scheduled delay.
+ * @param random - injectable RNG in `[0, 1)` (tests).
+ * @returns a delay within ±10% of the input.
+ */
+export declare function jitteredDelayMs(delayMs: number, random?: () => number): number;
+/**
  * Build a poller around one status call.
  * @param callStatus - the transport, injectable so the store is testable.
  * @returns the store consumed by the badge.
