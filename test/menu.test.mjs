@@ -169,7 +169,11 @@ try {
       && text.includes('元 / 亿 tokens'),
       'menu shows the blended price for the pre-cut revision',
     )
-    assert.ok(text.includes('2026-09-10 12:00 起 V4-Flash / V4-Flash-Vision 调价'), 'menu announces the pending change for every affected model')
+    assert.ok(text.includes('2026-09-10 12:00 起 V4-Flash / V4-Flash-Vision / V4.1-Flash 调价'), 'menu announces the pending change for every affected model')
+    // V4.1-Flash renders as its own row priced line-for-line with V4-Flash.
+    const v41Cells = [...modelRow('V4.1-Flash').children].slice(1).map(cell => cell.textContent)
+    const flashCells = [...modelRow('V4-Flash').children].slice(1).map(cell => cell.textContent)
+    assert.deepEqual(v41Cells, flashCells, 'V4.1-Flash shows the same rates as V4-Flash')
 
     // Outside pointerdown closes.
     const outside = document.createElement('button')

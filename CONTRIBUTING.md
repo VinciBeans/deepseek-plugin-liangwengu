@@ -36,9 +36,14 @@ npm test              # 三个测试串行执行，全部读构建产物 lib/cli
 harness vendor（其 `lib/types` 是未入库的构建产物），与插件 import 的
 `Context` 分裂成两个模块身份，`Context.slots` 增广失效（TS2339）。
 
-CI（`.github/workflows/ci.yml`）按矩阵在 `dsh-v0.1.2-alpha.1` ~ `alpha.5`、
-`dsh-v0.1.2-rc.1` 与 `dsh-v0.1.3-alpha.1` ~ `alpha.2` 八个 tag 上分别执行
+CI（`.github/workflows/ci.yml`）按矩阵在 `dsh-v0.1.3-alpha.1` ~ `alpha.2` 与
+`dsh-v0.1.5-alpha.1`、`alpha.2`、`rc.1` 共五个 tag 上分别执行
 typecheck + build + test，各自 pin 到固定 commit。
+
+支持范围与放弃策略见 README 的「兼容性」：`dsh-v0.1.2-alpha.1` ~ `rc.1` 的兼容性
+已放弃（矩阵中已删除对应 tag，不再验证与修复）；上游出现破坏性变更时，本插件只
+跟进新版本，不为旧版本保留兼容分支——届时同步删除矩阵中的旧 tag 并更新 README，
+新版本按 `tag` + `pin`（`git rev-parse <tag>^{commit}`）加进矩阵。
 
 ## 构建产物
 

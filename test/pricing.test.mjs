@@ -38,9 +38,9 @@ const {
 
 // ── the embedded table matches the official price page ─────────────────────
 assert.match(PRICING_SOURCE_URL, /^https:\/\/api-docs\.deepseek\.com\//)
-assert.equal(OFFICIAL_MODELS.length, 3)
+assert.equal(OFFICIAL_MODELS.length, 4)
 assert.deepEqual(OFFICIAL_MODELS.map(entry => entry.id), [
-  'deepseek-v4-flash', 'deepseek-v4-pro', 'deepseek-v4-flash-vision-exp',
+  'deepseek-v4-flash', 'deepseek-v4-pro', 'deepseek-v4-flash-vision-exp', 'deepseek-flash',
 ])
 
 const BASE_FLASH = { cacheHit: 0.05, cacheMiss: 1.5, output: 4.5 }
@@ -71,9 +71,11 @@ assert.equal(lookupPricing(undefined), undefined)
 const flash = lookupPricing('deepseek-v4-flash')
 const vision = lookupPricing('deepseek-v4-flash-vision-exp')
 const pro = lookupPricing('deepseek-v4-pro')
+const v41 = lookupPricing('deepseek-flash')
 assert.equal(flash.revisions.length, 2)
 assert.equal(vision.revisions.length, 2)
 assert.equal(pro.revisions.length, 1)
+assert.equal(v41.revisions.length, 2)
 
 // ── revision resolution around the change instant ──────────────────────────
 const before = FLASH_PRICE_CHANGE_AT - 1
@@ -103,6 +105,18 @@ assert.deepEqual(rateAt(pro, after, 'offPeak'), { cacheHit: 0.15, cacheMiss: 4.5
 // The vision flash variant is part of the same cut.
 assert.deepEqual(rateAt(vision, before, 'offPeak'), BASE_FLASH)
 assert.deepEqual(rateAt(vision, after, 'offPeak'), CUT_FLASH)
+
+// V4.1-Flash (provider id `deepseek-flash`) is priced line-for-line with the
+// flash series, on both sides of the announced cut.
+assert.deepEqual(rateAt(v41, 0, 'offPeak'), BASE_FLASH)
+assert.deepEqual(rateAt(v41, before, 'offPeak'), BASE_FLASH)
+assert.deepEqual(rateAt(v41, before, 'peak'), BASE_FLASH_PEAK)
+assert.deepEqual(rateAt(v41, after, 'offPeak'), CUT_FLASH)
+assert.deepEqual(rateAt(v41, after, 'peak'), CUT_FLASH_PEAK)
+assert.equal(activeRevision(v41, before), v41.revisions[0])
+assert.equal(activeRevision(v41, after), v41.revisions[1])
+assert.equal(nextRevision(v41, before), v41.revisions[1])
+assert.equal(nextRevision(v41, after), undefined)
 
 // ── buckets and cache-hit rate ─────────────────────────────────────────────
 const mix = { uncachedInputTokens: 1_000_000, cacheReadTokens: 9_000_000, cacheWriteTokens: 0, outputTokens: 1_000_000 }

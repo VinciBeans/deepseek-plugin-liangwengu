@@ -9,29 +9,24 @@ on:
 jobs:
   build-test:
     runs-on: ubuntu-latest
-    # 多版本兼容矩阵：对 dsh-v0.1.2-alpha.1 ~ alpha.5、dsh-v0.1.2-rc.1 与
-    # dsh-v0.1.3-alpha.1 ~ alpha.2 各验一遍 typecheck + build + test
-    # （契约面八版一致，但分别验证才能守住承诺）。
+    # 多版本兼容矩阵：对 dsh-v0.1.3-alpha.1 ~ alpha.2 与 dsh-v0.1.5-alpha.1、
+    # alpha.2、rc.1 各验一遍 typecheck + build + test（契约面五版一致，但分别
+    # 验证才能守住承诺）。dsh-v0.1.2-alpha.1 ~ rc.1 的兼容性已放弃：不再入矩阵、
+    # 不再验证与修复；上游出现破坏性变更时只跟进新版本，删除旧 tag 即可。
     strategy:
       fail-fast: false
       matrix:
         harness:
-          - tag: dsh-v0.1.2-alpha.1
-            pin: cd5ef8148158c3a752a658978873241fdf8e2bbc
-          - tag: dsh-v0.1.2-alpha.2
-            pin: 0a53fb55bea101816fa226bb964ae2bed71c343b
-          - tag: dsh-v0.1.2-alpha.3
-            pin: dd6322d604e00eec1ba5e0c8541159906a21094a
-          - tag: dsh-v0.1.2-alpha.4
-            pin: 4e84901e6471b79ec0338099867ebb4606d12bb5
-          - tag: dsh-v0.1.2-alpha.5
-            pin: db6bdc3576c2d4e7c965e8e3ed0c2a731eed87f5
-          - tag: dsh-v0.1.2-rc.1
-            pin: a66e4702047846cdaa10c66c9d3df3951f5ea70d
           - tag: dsh-v0.1.3-alpha.1
             pin: d347e703908d0406b7a7ef80e3a0e594d86b2215
           - tag: dsh-v0.1.3-alpha.2
             pin: 82a5fd61a7cf5c293cec4bdff68f455398d685e9
+          - tag: dsh-v0.1.5-alpha.1
+            pin: 5dda764ed3aa172535a7967b06ff95d9cbfe536a
+          - tag: dsh-v0.1.5-alpha.2
+            pin: b2e3b2a0125854567a4a5fcba75782e42fe84901
+          - tag: dsh-v0.1.5-rc.1
+            pin: 183f08e9c6dde7e36cd2318eaee70b0da08fb35e
     steps:
       - uses: actions/checkout@v4
 

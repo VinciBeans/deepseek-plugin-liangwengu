@@ -114,6 +114,13 @@ export const OFFICIAL_MODELS: readonly [OfficialModel, ...OfficialModel[]] = [
     id: 'deepseek-v4-flash-vision-exp',
     pricing: { name: 'V4-Flash-Vision', revisions: [FLASH_BASE, FLASH_CUT] },
   },
+  {
+    // V4.1-Flash is priced line-for-line with the rest of the flash series, so
+    // it reuses the same two revisions rather than copying their numbers: the
+    // announced flash cut moves it as well.
+    id: 'deepseek-flash',
+    pricing: { name: 'V4.1-Flash', revisions: [FLASH_BASE, FLASH_CUT] },
+  },
 ]
 
 /**
