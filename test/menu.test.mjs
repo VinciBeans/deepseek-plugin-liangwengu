@@ -104,6 +104,22 @@ function tierAt(epochMs) {
 
 const tick = () => new Promise(resolve => setTimeout(resolve, 60))
 
+/**
+ * Wait until `predicate` holds, checking on each tick.
+ *
+ * The balance arrives from a poll that resolves asynchronously, so asserting on
+ * it right after a mount is a race — it passed on a fast machine and failed on
+ * CI, where the badge still read `余额 查询中…`. Counting attempts rather than
+ * milliseconds keeps this correct while the badge's clock is frozen.
+ */
+async function waitFor(predicate, what, attempts = 50) {
+  for (let attempt = 0; attempt < attempts; attempt += 1) {
+    if (predicate()) return
+    await tick()
+  }
+  throw new Error(`timed out after ${attempts} ticks waiting for ${what}`)
+}
+
 // A failed assertion can leave a React root (and its per-second tick) alive,
 // which would turn a test failure into a hang. Bound the run so CI fails fast.
 const WATCHDOG_MS = 15_000
@@ -167,6 +183,10 @@ try {
 
     // One line, in this order: slot label · countdown | balance. The gaps around
     // the separators are CSS, so the text content itself has no spaces there.
+    await waitFor(
+      () => button.textContent.includes('余额 ￥110.00'),
+      'the polled balance to reach the badge',
+    )
     assert.match(
       button.textContent,
       /^当前时段：梁文(峰|谷)·剩余 \d{2}:\d{2}:\d{2}\|余额 ￥110\.00$/,
@@ -231,8 +251,7 @@ try {
     assert.ok(refresh !== null, 'menu offers a manual balance refresh')
     const callsBeforeRefresh = balanceCalls
     refresh.dispatchEvent(new window.MouseEvent('click', { bubbles: true }))
-    await tick()
-    assert.ok(balanceCalls > callsBeforeRefresh, 'the refresh button polls the balance route again')
+    await waitFor(() => balanceCalls > callsBeforeRefresh, 'the refresh button to poll again')
 
     // Outside pointerdown closes.
     const outside = document.createElement('button')
@@ -253,7 +272,10 @@ try {
     hostBuild = 'deadbeef'
     const refresh = document.querySelector('.dsh-lwgu-refresh')
     refresh.dispatchEvent(new window.MouseEvent('click', { bubbles: true }))
-    await tick()
+    await waitFor(
+      () => document.querySelector('.dsh-lwgu-panel').textContent.includes('不是同一份构建'),
+      'the mismatch warning to render',
+    )
     const text = document.querySelector('.dsh-lwgu-panel').textContent
     assert.ok(
       text.includes('宿主半侧与前端不是同一份构建（宿主 deadbeef'),
