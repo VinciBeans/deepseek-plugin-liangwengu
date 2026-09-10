@@ -18,7 +18,8 @@ npm test              # 三个测试串行执行，全部读构建产物 lib/cli
 
 - `test/time-slot.test.mjs` — 峰/谷判定、倒计时与剩余时间
 - `test/pricing.test.mjs` — 价目表数值、调价生效时刻取档、综合单价与格式化
-- `test/menu.test.mjs` — jsdom 里真实渲染组件：菜单展开/外部点击收起/Esc 收起，并在调价前后两个伪造时刻断言菜单显示对应档位（`react-dom` + `jsdom` 仅测试用）
+- `test/balance.test.mjs` — 余额路由常量、轮询退避、状态机（成功/失败保留旧值/引用计数）与胶囊显示规则
+- `test/menu.test.mjs` — jsdom 里真实渲染组件：菜单展开/外部点击收起/Esc 收起，并在调价前后两个伪造时刻断言菜单显示对应档位（余额轮询用进程内 stub 的 `fetch` 顶掉，`react-dom` + `jsdom` 仅测试用）
 
 类型依赖说明：客户端类型（`@deepseek-ai/cordis` 的 `Context`、
 `@deepseek-ai/dsh-client-ui-conversation/client` 的会话标题栏槽位声明、
@@ -54,6 +55,21 @@ typecheck + build + test，各自 pin 到固定 commit。
 用固定 UTC+8 纯算术取北京时间；峰期为工作日 09:00–12:00 与 14:00–18:00，谷期连续到下一峰期开始。
 胶囊注册在 DSH 客户端的 `conversation.session.header.utilities` 槽位（`order: -1`），
 每秒对齐秒边界刷新，随 Cordis 生命周期清理。
+
+## 余额数据
+
+宿主半侧（`src/index.ts`）在 Connection 的共享 `/api` 通道上注册精确路由
+`POST /api/liangwengu.balance`，用凭据服务解析出的 key 调 DeepSeek `GET /user/balance`；
+浏览器半侧（`src/client/balance.ts`）轮询这条同源路由，key 不进浏览器。
+`src/balance-api.ts` 的请求/解析/错误分类是纯函数，可脱离网络测试。
+
+轮询规则：默认间隔 5 秒，连续失败按 `max((k+1)×interval, k×10s)` 退避（k≥3 固定 30 秒），
+成功即清零；页面隐藏暂停。失败保留上一次成功值，胶囊行转黄提示陈旧，不清空。
+路由路径是本插件私有的（不复用 `dsh-deepseek-balance` 的路径）：Connection 对重复的精确路由
+直接抛错，两个插件同时安装时各自的通道都要能用。
+
+新增展示项时改 `src/client/balance.ts` 的显示规则并同步 `test/balance.test.mjs`；
+若改了路由路径，记得同时改宿主半侧的常量与 `BALANCE_PATH`。
 
 ## 定价数据
 

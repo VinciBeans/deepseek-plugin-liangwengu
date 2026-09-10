@@ -50,6 +50,26 @@ const plugin = registration.factory((spec) => {
   throw new Error(`unresolved external: ${spec}`)
 })
 
+// ── faked balance route ────────────────────────────────────────────────────
+// The badge polls the host's `/api/liangwengu.balance` on mount; answer it
+// in-process so the render assertions never depend on a live DSH host.
+const BALANCE_SNAPSHOT = {
+  isAvailable: true,
+  entries: [{
+    currency: 'CNY',
+    totalBalance: '110.00',
+    grantedBalance: '0.00',
+    toppedUpBalance: '110.00',
+  }],
+  pollIntervalMs: 30_000,
+  lowBalanceThreshold: 10,
+}
+let balanceCalls = 0
+globalThis.fetch = async () => {
+  balanceCalls += 1
+  return { ok: true, json: async () => ({ ok: true, value: BALANCE_SNAPSHOT }) }
+}
+
 // ── faked clock helper ─────────────────────────────────────────────────────
 const REAL_DATE = Date
 
@@ -145,6 +165,8 @@ try {
 
     assert.match(button.textContent, /当前时段：梁文(谷|峰)/, 'badge shows the slot label')
     assert.ok(button.textContent.includes('剩余'), 'badge shows the countdown')
+    assert.ok(button.textContent.includes('余额 ¥110.00'), 'badge lower line shows the polled balance')
+    assert.ok(balanceCalls > 0, 'mounting the badge starts the balance poll')
     assert.equal(button.getAttribute('aria-haspopup'), 'dialog')
     assert.equal(button.getAttribute('aria-expanded'), 'false')
     assert.ok(document.querySelector('.dsh-lwgu-panel') === null, 'menu starts closed')

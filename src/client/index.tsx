@@ -3,10 +3,12 @@
  *
  * Renders a small badge at the top-right corner of the DeepSeek Harness Web
  * GUI showing the current official compute time-slot together with a live
- * countdown of the remaining time of that slot:
+ * countdown of the remaining time of that slot, and — on its lower line — the
+ * DeepSeek account balance polled through the host half's `/api` route:
  *
  *   - workdays (Mon–Fri) 09:00–12:00 and 14:00–18:00 → 「当前时段：梁文峰」
  *   - all other times, incl. the whole weekend      → 「当前时段：梁文谷」
+ *   - lower line                                    → 「余额 ¥110.00」
  *
  * 周末（周六/周日）全天为低谷期：谷期从周五 18:00 起连续运行到周一 09:00
  * 峰期开始，倒计时跨天计算（≥24h 时以 `X天 HH:MM:SS` 显示）。
@@ -18,10 +20,11 @@
  *
  * Hovering the badge deepens its colours; clicking it opens a detail menu —
  * the same shape as DSH's own token-stat dialog — whose top half is the
- * official DeepSeek price table and whose bottom half is this session's
- * blended unit price in 元 per 亿 tokens, computed from the session's own
- * cache-hit mix under the current slot's rates. Clicking anywhere outside the
- * badge or the menu, or pressing Escape, closes it.
+ * official DeepSeek price table, whose middle is this session's blended unit
+ * price in 元 per 亿 tokens (computed from the session's own cache-hit mix
+ * under the current slot's rates), and whose foot is the account-balance
+ * detail. Clicking anywhere outside the badge or the menu, or pressing Escape,
+ * closes it.
  */
 import { useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
@@ -56,6 +59,7 @@ import {
   type PriceTier,
   type RateRevision,
 } from './pricing'
+import { badgeBalanceText, balance, balanceTone } from './balance'
 
 // ── time-slot logic ───────────────────────────────────────────────────────
 
@@ -191,6 +195,8 @@ const STYLE = `
     --lwgu-panel-shadow: 0 8px 28px rgba(0,0,0,0.16);
     --lwgu-peak: var(--dsw-alias-state-success-primary, #22c55e);
     --lwgu-off: var(--dsw-alias-label-caption, #9ca3af);
+    --lwgu-warn: var(--dsw-alias-state-warn-primary, #e8a33d);
+    --lwgu-alert: var(--dsw-alias-state-error-primary, #d54941);
   }
   body[data-ds-dark-theme] .dsh-liangwengu,
   body[data-ds-dark-theme] .dsh-lwgu-panel {
@@ -208,6 +214,8 @@ const STYLE = `
     --lwgu-panel-shadow: 0 10px 32px rgba(0,0,0,0.6);
     --lwgu-peak: #4ade80;
     --lwgu-off: #71717a;
+    --lwgu-warn: #e0a83c;
+    --lwgu-alert: #f2726f;
   }
   .dsh-liangwengu {
     display: flex;
@@ -238,14 +246,26 @@ const STYLE = `
     background: var(--lwgu-off);
   }
   .dsh-lwgu-dot[data-peak="true"] { background: var(--lwgu-peak); }
+  .dsh-lwgu-sep { color: var(--lwgu-dim); font-weight: 400; }
   .dsh-lwgu-countdown {
-    padding-left: 13px;
     font-size: 10px;
     line-height: 12px;
     color: var(--lwgu-sub);
     font-weight: 400;
     font-variant-numeric: tabular-nums;
   }
+  /* The badge's lower half: the account balance, always on its own line so a
+     long amount or a warning never reflows the slot label above it. */
+  .dsh-lwgu-balance {
+    font-size: 10px;
+    line-height: 12px;
+    color: var(--lwgu-sub);
+    font-weight: 400;
+    font-variant-numeric: tabular-nums;
+  }
+  .dsh-lwgu-balance[data-tone="low"] { color: var(--lwgu-alert); font-weight: 600; }
+  .dsh-lwgu-balance[data-tone="stale"] { color: var(--lwgu-warn); }
+  .dsh-lwgu-balance[data-tone="none"] { color: var(--lwgu-dim); }
   .dsh-lwgu-sr {
     position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
     overflow: hidden; clip-path: inset(50%); white-space: nowrap;
@@ -315,6 +335,21 @@ export function TimeSlotIndicator({ useProjection, sessionId }: IndicatorProps) 
 
   // A pricing model picked for one Session must not leak into the next one.
   useEffect(() => { setPickedModelId(null) }, [sessionId])
+
+  // Poll the account balance while this badge is mounted (reference-counted:
+  // the last unmounting consumer stops the timer), and re-render as each poll
+  // lands — the per-second slot tick alone would leave a fresh balance unseen
+  // for up to a second.
+  const [balanceState, setBalanceState] = useState(() => balance.getSnapshot())
+  useEffect(() => {
+    setBalanceState(balance.getSnapshot())
+    const unsubscribe = balance.subscribe(() => { setBalanceState(balance.getSnapshot()) })
+    const release = balance.acquire()
+    return () => {
+      unsubscribe()
+      release()
+    }
+  }, [])
 
   useEffect(() => {
     let timer: number
@@ -395,6 +430,11 @@ export function TimeSlotIndicator({ useProjection, sessionId }: IndicatorProps) 
   const tier = tierOf(now)
   const countdownId = useId()
 
+  // Polled account balance, driving the badge's lower line (and, below the
+  // price table, the menu's detail block).
+  const balanceText = badgeBalanceText(balanceState)
+  const balanceToneValue = balanceTone(balanceState)
+
   const usage = useProjection('tokenUsage')
   const modelSelection = useProjection('modelSelection')
   const sessionModelId = modelSelection?.next?.model ?? modelSelection?.lastUsed?.model ?? null
@@ -428,15 +468,17 @@ export function TimeSlotIndicator({ useProjection, sessionId }: IndicatorProps) 
         className="dsh-liangwengu"
         aria-haspopup="dialog"
         aria-expanded={open}
-        aria-label={`${label}，查看 DeepSeek 定价`}
+        aria-label={`${label}，余额 ${balanceText}，查看定价与余额`}
         aria-describedby={countdownId}
         onClick={() => { setOpen(current => !current) }}
       >
         <span className="dsh-lwgu-line">
           <span className="dsh-lwgu-dot" data-peak={peak ? 'true' : 'false'} />
           <span>{label}</span>
+          <span className="dsh-lwgu-sep" aria-hidden="true">·</span>
+          <span className="dsh-lwgu-countdown" id={countdownId}>剩余 {countdown}</span>
         </span>
-        <span className="dsh-lwgu-countdown" id={countdownId}>剩余 {countdown}</span>
+        <span className="dsh-lwgu-balance" data-tone={balanceToneValue}>余额 {balanceText}</span>
       </button>
       {/* The button's accessible name is the slot label alone (the countdown
           rides aria-describedby, so it is readable on demand without renaming
@@ -573,6 +615,19 @@ export {
   rateAt,
   totalTokens,
 } from './pricing'
+
+// Same for the balance poller and its display rules.
+export {
+  BALANCE_PATH,
+  balance,
+  balanceTone,
+  badgeBalanceText,
+  createBalanceStore,
+  currencySign,
+  formatBalanceEntries,
+  isBalanceLow,
+  nextPollDelayMs,
+} from './balance'
 
 /** Required services (cordis fiber inject): the slot registry. */
 export const inject = ['slots']
