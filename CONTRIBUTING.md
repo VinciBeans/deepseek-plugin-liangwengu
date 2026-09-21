@@ -40,8 +40,8 @@ harness vendor（其 `lib/types` 是未入库的构建产物），与插件 impo
 `Context` 分裂成两个模块身份，`Context.slots` 增广失效（TS2339）。
 
 CI（`.github/workflows/ci.yml`）按矩阵在 `dsh-v0.1.3-alpha.1` ~ `alpha.2`、
-`dsh-v0.1.5-alpha.1`、`alpha.2`、`rc.1` 与 `dsh-v0.1.6-alpha.2` 共六个 tag 上
-分别执行 typecheck + build + test，各自 pin 到固定 commit。
+`dsh-v0.1.5-alpha.1`、`alpha.2`、`rc.1`、`rc.2` 与 `dsh-v0.1.6-alpha.1`、`alpha.2`
+共八个 tag 上分别执行 typecheck + build + test，各自 pin 到固定 commit。
 
 支持范围与放弃策略见 README 的「兼容性」：`dsh-v0.1.2-alpha.1` ~ `rc.1` 的兼容性
 已放弃（矩阵中已删除对应 tag，不再验证与修复）；上游出现破坏性变更时，本插件只
