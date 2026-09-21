@@ -39,14 +39,27 @@ npm test              # 五个测试串行执行，全部读构建产物 lib/cli
 harness vendor（其 `lib/types` 是未入库的构建产物），与插件 import 的
 `Context` 分裂成两个模块身份，`Context.slots` 增广失效（TS2339）。
 
-CI（`.github/workflows/ci.yml`）按矩阵在 `dsh-v0.1.3-alpha.1` ~ `alpha.2` 与
-`dsh-v0.1.5-alpha.1`、`alpha.2`、`rc.1` 共五个 tag 上分别执行
-typecheck + build + test，各自 pin 到固定 commit。
+CI（`.github/workflows/ci.yml`）按矩阵在 `dsh-v0.1.3-alpha.1` ~ `alpha.2`、
+`dsh-v0.1.5-alpha.1`、`alpha.2`、`rc.1` 与 `dsh-v0.1.6-alpha.2` 共六个 tag 上
+分别执行 typecheck + build + test，各自 pin 到固定 commit。
 
 支持范围与放弃策略见 README 的「兼容性」：`dsh-v0.1.2-alpha.1` ~ `rc.1` 的兼容性
 已放弃（矩阵中已删除对应 tag，不再验证与修复）；上游出现破坏性变更时，本插件只
-跟进新版本，不为旧版本保留兼容分支——届时同步删除矩阵中的旧 tag 并更新 README，
-新版本按 `tag` + `pin`（`git rev-parse <tag>^{commit}`）加进矩阵。
+跟进新版本，不为旧版本保留兼容分支——届时同步删除矩阵中的旧 tag 并更新 README。
+
+加一个新 tag（新版本按 `tag` + `pin`（`git rev-parse <tag>^{commit}`）加进矩阵）：
+
+1. 逐个 diff 插件消费的契约文件，别只看版本号——0.1.5 那一代这些文件逐字未动，
+   0.1.6 却重写了客户端模块系统与槽位实现，只有逐个对照声明形状才能判断：
+   `dsh.client` 校验（`client/modules/src/client/manifest.ts`）、加载器模板与平台
+   seed 表（`client/web/src/boot.ts`、`seed.ts`）、`conversation.session.header.utilities`
+   的槽位声明与渲染点（`ui-conversation` 的 `contract/slots.ts`、`skeleton/ConversationSession.tsx`）、
+   `tokenUsage` / `modelSelection` 投影、`connection.fetch.register` 与
+   `credentials.resolve`、`dsh.bundle.patch` 解析（0.1.6 起在 `packages/boot/plugin-manager`）。
+2. 用该 tag 的真实类型声明跑 `npm run typecheck`：本地 devDeps 是 `file:` 指向 harness
+   检出的软链，检出切到该 tag 并 `pnpm run build:lib` 后，typecheck 验的就是该 tag；
+   若本机检出恰好就是该 tag（工作树只多无关 commit），直接跑即可。
+3. 同步 README「兼容性」的支持条目、`ci.yml` 矩阵上方的说明与 `package.json` 的适配范围。
 
 ## 构建产物
 

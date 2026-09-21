@@ -21,7 +21,7 @@
 
 需要已安装 DSH，并至少成功启动过一次 Web GUI。从 npm 安装（按 dist-tag 选择）：
 
-1. **npm `latest`**（0.1.3-alpha.2，与 `next` 同步）— 兼容 dsh v0.1.3-alpha.1 ~ v0.1.5-rc.1：
+1. **npm `latest`**（0.1.3-alpha.2，与 `next` 同步）— 兼容 dsh v0.1.3-alpha.1 ~ v0.1.6-alpha.2：
    ```sh
    dsh plugin --profile web add liangwengu
    # 等价写法：dsh plugin --profile web add liangwengu@next
@@ -114,10 +114,11 @@ dsh --profile web --dump-config          # 看到 liangwengu 层即安装成功
 
 ### 支持
 
+- **dsh v0.1.6-alpha.2（支持）:** 这一代重写了客户端模块系统与槽位内部实现（`boot.ts` 拆出 `seed.ts` / `mount.ts`，新增 `client/modules/src/client/entries.ts` 与 `ui-renderer/src/client/scoped-slots.tsx`），但插件消费的声明逐条未变：`dsh.client` 仍只要求 `platform: string`（`inject` / `external` / `immediately` 可选，本插件都不声明）；加载器仍以 `window.__ModuleLoader__.load({ id, factory })` 注册闭包工厂，平台 seed 表仍含 `react` 与 `react/jsx-runtime`（`packages/client/web/src/seed.ts`）；`conversation.session.header.utilities` 的槽位声明（`ui-conversation/src/client/contract/slots.ts`）与渲染点（`ConversationSession.tsx`）未动——上游自己的导出会话按钮（`session-query/session-log-export`）在同一个槽上用同一套 `ctx.slots.inject(name, () => ctx.slots.register({ name, id, … }, Component))` 注册（它传 `locale` / `inject`，本插件传 `order: -1`；列表仍按 `priority` → `order` 升序排，胶囊仍在导出按钮左侧），`PropsRuntime<'conversation.session.header.utilities'>` 也仍是同类插件（`ui-open-in-app`）的写法；投影两侧不变（`tokenUsage` 四桶、`modelSelection` 的 `next` / `lastUsed` → `.model`）；宿主侧 `ConnectionFetchRoute`（`client/connection/src/rpc.ts` 的 `path` / `methods` / `requestBody` / `fetch` + `register` 返回清理函数）与 `credentials.resolve(ref) → { value, source }`（与 `llm-deepseek` 的 `apiKeyEnv` 同一条链）形状不变；`dsh.bundle.patch` 仍在解析，只是实现从 `apps/cli/src/plugin.ts` 移到了 `packages/boot/plugin-manager/src/index.ts`。已实测：本机 harness 检出即该 tag（工作树只多一个仅改 `apps/cli/src/args.ts` 的 commit），在其构建出的 `lib/types` 上通过 typecheck + build + test。
 - **dsh v0.1.5-alpha.1 ~ v0.1.5-rc.1（支持）:** 三个 tag 上插件消费的契约面与 0.1.3-alpha.2 逐字一致——`packages/client/ui-renderer/src`（`slots` 服务与 `SlotRegistry.inject / register`）、`packages/llm/token-meter/src/usage-projection.ts`（`tokenUsage` 四桶）、`packages/api/session-controller/src/model-selection-projection.ts`（`lastUsed` / `next` → `.provider` / `.model`）、`apps/cli/src/plugin.ts`（`dsh.bundle.patch` 解析）、`packages/client/modules/src/client/manifest.ts` 与 `packages/client/web/src/boot.ts`（`dsh.client` 校验与加载器模板）在各 tag 上零改动；`packages/client/ui-slots/src` 仅新增 `ResourceProtocolMap`。`conversation.session.header.utilities` 槽位声明与 `ConversationSession.tsx` 渲染点未动（0.1.5 新增的是它右侧的 `conversation.session.header.corner` 槽），列表排序仍按 `order` 升序，因此 `order: -1` 依然把胶囊排在导出按钮左侧。期间 `'conversation'` 槽改名为 `'main.conversation'`、平台模块新增 `@deepseek-ai/dsh-client-ui-dockkit`、`ClientModuleRegistry` 的 `webServer` 变为可选——本插件都不使用，故不受影响。`vendor/cordis` 在各 tag 上是同一棵树（`@deepseek-ai/cordis` 4.0.2，与本包 devDep 固定版本一致）。已实测：在 0.1.5-rc.1 的真实类型声明（其 `lib/types` 含 rc.1 才有的 `main.conversation`、`header.corner`、`ResourceProtocolMap`）上通过 typecheck，并在该版本上通过 build + test。
 - **dsh v0.1.3-alpha.1 ~ v0.1.3-alpha.2（支持）:** 两个 tag 上逐项复核，插件消费的契约面与当时的基线 0.1.2-rc.1 一致——`packages/client/ui-slots/src`、`packages/client/ui-renderer/src` 与 `packages/client/web/src`（平台 seed 表）零改动，`conversation.session.header.utilities` 槽位声明与 `ConversationSession.tsx` 渲染点零改动，`apps/cli/src/plugin.ts` 的 `dsh.bundle.patch` 解析不变；`packages/client/modules` 仅把 `dsh.client` 声明类型集中到 `@deepseek-ai/dsh-package-manifest/types`，校验语义不变。另在 0.1.3-alpha.2 的真实 `SlotRegistry` 上跑通注册 → 渲染 → 卸载（条目 id/order/component 与 fiber 清理均符合预期）。
-- CI 在 0.1.3-alpha.1 ~ alpha.2 与 0.1.5-alpha.1、alpha.2、rc.1 共五个 tag 上分别执行 typecheck + build + test（见 `.github/workflows/ci.yml` 的矩阵）。
-- **宿主半侧依赖 Connection:** 余额通道注册在 Connection 的共享 `/api` 通道上，因此宿主半侧声明 `inject = ['connection']`——0.1.5-rc.1 的该接口为 `connection.fetch.register({ path: '/api/…', methods, requestBody, fetch })`。没有该服务的 profile（如 headless）不会激活宿主半侧，胶囊余额行会显示「查询失败」，其余功能与浏览器半侧的加载不受影响。
+- CI 在 0.1.3-alpha.1 ~ alpha.2、0.1.5-alpha.1、alpha.2、rc.1 与 0.1.6-alpha.2 共六个 tag 上分别执行 typecheck + build + test（见 `.github/workflows/ci.yml` 的矩阵）。
+- **宿主半侧依赖 Connection:** 余额通道注册在 Connection 的共享 `/api` 通道上，因此宿主半侧声明 `inject = ['connection']`——0.1.5-rc.1 ~ 0.1.6-alpha.2 的该接口为 `connection.fetch.register({ path: '/api/…', methods, requestBody, fetch })`。没有该服务的 profile（如 headless）不会激活宿主半侧，胶囊余额行会显示「查询失败」，其余功能与浏览器半侧的加载不受影响。
 - 浏览器 bundle 运行时只 require `react` 与 `react/jsx-runtime`（均在平台 seed 表内），无其他运行时依赖；`@deepseek-ai/*` 全部为 type-only 引用，不在 bundle 中。
 
 ### 不再支持
