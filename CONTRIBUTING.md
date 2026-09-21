@@ -8,7 +8,7 @@
 npm install --legacy-peer-deps
 npm run typecheck     # tsc --noEmit
 npm run build         # 生成 lib/index.js + lib/client.js + lib/types
-npm test              # 三个测试串行执行，全部读构建产物 lib/client.js
+npm test              # 五个测试串行执行，全部读构建产物 lib/client.js
 ```
 
 若 `npm install` 报 `Ineffective mark-compacts`（`file:` 类型依赖让依赖图很大），加
@@ -16,7 +16,7 @@ npm test              # 三个测试串行执行，全部读构建产物 lib/cli
 
 测试分层（都通过 `window.__ModuleLoader__` 加载已构建的 bundle，验的是发布产物）：
 
-- `test/time-slot.test.mjs` — 峰/谷判定、倒计时与剩余时间
+- `test/time-slot.test.mjs` — 峰/谷判定（含法定节假日与调休上班日）、倒计时与剩余时间
 - `test/pricing.test.mjs` — 价目表数值、调价生效时刻取档、综合单价与格式化
 - `test/balance.test.mjs` — 余额路由常量、轮询退避与抖动、状态机（成功/失败保留旧值/引用计数）与胶囊显示规则
 - `test/host.test.mjs` — 直接 import `lib/index.js` 驱动宿主半侧 `apply`：注册的精确路由、成功/失败响应、合并窗口、配置默认值与缺 Connection 时的降级
@@ -58,7 +58,7 @@ typecheck + build + test，各自 pin 到固定 commit。
 
 ## 工作原理
 
-用固定 UTC+8 纯算术取北京时间；峰期为工作日 09:00–12:00 与 14:00–18:00，谷期连续到下一峰期开始。
+用固定 UTC+8 纯算术取北京时间；峰期为正常工作日（周一至周五，且不是法定节假日放假日期）09:00–12:00 与 14:00–18:00，谷期连续到下一峰期开始（跨周末、跨假期同样连续）。
 胶囊注册在 DSH 客户端的 `conversation.session.header.utilities` 槽位（`order: -1`），
 每秒对齐秒边界刷新，随 Cordis 生命周期清理。
 
@@ -88,3 +88,21 @@ typecheck + build + test，各自 pin 到固定 commit。
 新增一次调价：按 [官方定价页](https://api-docs.deepseek.com/zh-cn/quick_start/pricing) 在对应模型的
 `revisions` 末尾追加一条（`effectiveFrom` 用 `Date.UTC(...)` 表示北京时间），并同步
 `test/pricing.test.mjs` 的期望值。已排期的调价无需其他改动——菜单每秒重算，到点自动切换。
+
+## 法定节假日数据
+
+官方口径是「周一至周五（不含中国法定节假日）9:00–12:00、14:00–18:00 为高峰时段，其余时段
+含周末及法定节假日全天为空闲时段」，且调休上班的周末同样按空闲时段计费。判定因此是
+**规则 + 逐年数据**：峰期规则在 `src/client/time-slot.ts`（`PEAK_SLOTS` 是窗口，`isPeakDay`
+判「正常工作日」），放假日期在 `src/client/holidays.ts` 的 `HOLIDAY_SPANS`。
+
+更新次年安排：国务院办公厅一般在头一年 11 月公布（2026 年那份是国办发明电〔2025〕7 号，
+2025-11-04 发布），拿到通知后往 `HOLIDAY_SPANS` 追加 `['YYYY-MM-DD', 'YYYY-MM-DD']` 区间，
+并同步 `HOLIDAY_SOURCE_URL`、`test/time-slot.test.mjs` 的 `NOTICE_SPANS`。只加数据，判定代码不动。
+表里记的是通知的**整天放假区间**（连休两端都算，含其中的周末），不是「法定节假日」本身那几天：
+官方按整段假期计费（2026 年中秋 3 天 + 国庆 7 天 = 10 天）。表未覆盖的日期按裸规则判定。
+
+调休上班日（通知里的「上班」条款）**不需要单独一张表**：调休就是用周末换连休，这些日子固定
+落在周六/周日，已被「周末全天为谷期」覆盖。`test/time-slot.test.mjs` 用 2026-09-20、10-10
+（及它们之后那个周一的 09:00 峰期）锁住这条口径——若哪天把「工作日」改成官方上班日日历，
+这两个用例会先炸。

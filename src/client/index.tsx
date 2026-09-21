@@ -6,12 +6,14 @@
  * countdown, and the DeepSeek account balance polled through the host half's
  * `/api` route:
  *
- *   - workdays (Mon–Fri) 09:00–12:00 and 14:00–18:00 → 「当前时段：梁文峰」
- *   - all other times, incl. the whole weekend      → 「当前时段：梁文谷」
- *   - after the `|`                                 → 「余额 ￥110.00」
+ *   - ordinary workdays (Mon–Fri) 09:00–12:00 and 14:00–18:00 → 「当前时段：梁文峰」
+ *   - all other times — the whole weekend, every statutory holiday, and a
+ *     weekend that is only a 调休 workday                    → 「当前时段：梁文谷」
+ *   - after the `|`                                          → 「余额 ￥110.00」
  *
- * 周末（周六/周日）全天为低谷期：谷期从周五 18:00 起连续运行到周一 09:00
- * 峰期开始，倒计时跨天计算（≥24h 时以 `X天 HH:MM:SS` 显示）。
+ * 周末（周六/周日）与国家法定节假日全天为低谷期，调休上班的周末同样按谷期计费。谷期不是在
+ * 每天 0 点结束，而是连续运行到下一个峰期开始——周五 18:00 起算到周一 09:00，长假前最后一个
+ * 工作日 18:00 起算到假期后第一个工作日 09:00；倒计时跨天计算（≥24h 时以 `X天 HH:MM:SS` 显示）。
  *
  * The time is always evaluated in Asia/Shanghai, regardless of the user's
  * local timezone. The countdown ticks once per second and both the label and
@@ -288,6 +290,13 @@ export {
   getSlotLabel,
   getSlotRemaining,
 } from './time-slot'
+
+// Same for the statutory-holiday calendar the slot arithmetic consults.
+export {
+  HOLIDAY_SOURCE_URL,
+  HOLIDAY_SPANS,
+  isStatutoryHoliday,
+} from './holidays'
 
 // Same for the pricing math.
 export {

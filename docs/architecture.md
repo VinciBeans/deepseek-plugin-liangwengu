@@ -90,6 +90,7 @@ flowchart LR
     ApiTs["balance-api.ts<br/>GET /user/balance 客户端"]
     CIndex["client/index.tsx<br/>胶囊 + 面板外壳 + apply"]
     CSlot["client/time-slot.ts<br/>时段与倒计时算术"]
+    CHolidays["client/holidays.ts<br/>法定节假日数据与判定"]
     CPricing["client/PricingTable.tsx<br/>① 官方价目表 + 调价预告"]
     CComposite["client/CompositeSection.tsx<br/>② 本会话综合单价"]
     CBalanceSection["client/BalanceSection.tsx<br/>③ 余额详情"]
@@ -107,6 +108,7 @@ flowchart LR
     CBalanceSection --> CBalance
     CIndex --> CBalance
     CSlot --> CPricingMath
+    CSlot --> CHolidays
   end
 
   subgraph Build["scripts/build.mjs"]
@@ -209,7 +211,8 @@ sequenceDiagram
 | `src/index.ts` | 宿主半侧：配置解析与钳制、凭据解析（服务→环境变量）、注册 `/api/liangwengu.balance`、合并窗口、把快照与生效配置一起下发 |
 | `src/balance-api.ts` | `GET /user/balance` 的请求、解析、错误分类；纯函数，可脱离网络测试 |
 | `src/client/index.tsx` | 胶囊渲染、面板外壳（定位 / 焦点 / 关闭）、`apply` 注册槽位、测试用再导出 |
-| `src/client/time-slot.ts` | 北京时间峰谷判定、剩余时间与倒计时格式化（纯算术，无 Intl） |
+| `src/client/time-slot.ts` | 北京时间峰谷判定（周末 / 法定节假日 / 调休上班日）、剩余时间与倒计时格式化（纯算术，无 Intl） |
+| `src/client/holidays.ts` | 国务院放假安排数据（`HOLIDAY_SPANS`，逐年更新）与「这天是否放假」判定 |
 | `src/client/pricing.ts` | 官方价目表数据（按生效时间分档）、计价数学、档位标签 |
 | `src/client/PricingTable.tsx` | 菜单第一块：价目表与调价预告（`memo`，只随档位 / 生效分档 / 选中模型变化） |
 | `src/client/CompositeSection.tsx` | 菜单第二块：本会话综合单价（`memo`） |

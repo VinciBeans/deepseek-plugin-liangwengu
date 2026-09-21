@@ -3,10 +3,11 @@
  * badge's detail menu.
  *
  * Every rate is 元 per million tokens, transcribed from the official price page
- * ({@link PRICING_SOURCE_URL}). The page's peak window — Beijing time
- * Mon–Fri 09:00–12:00 and 14:00–18:00, off-peak otherwise — is the same window
- * the badge already classifies as 梁文峰 / 梁文谷, so the menu reuses that
- * classification instead of keeping a second copy of the schedule.
+ * ({@link PRICING_SOURCE_URL}). That page's peak rule — Beijing time Mon–Fri
+ * 09:00–12:00 and 14:00–18:00, statutory holidays excluded, off-peak otherwise,
+ * with a 调休 weekend workday also charged off-peak — is the rule the badge
+ * classifies as 梁文峰 / 梁文谷 (`time-slot.ts` over `holidays.ts`), so the menu
+ * reuses that classification instead of keeping a second copy of the schedule.
  *
  * Prices are not one table but a list of dated revisions per model: an official
  * price change is recorded as a new {@link RateRevision} carrying the instant it

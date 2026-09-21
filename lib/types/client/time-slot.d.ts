@@ -1,24 +1,8 @@
-/**
- * Beijing compute-slot arithmetic and countdown formatting.
- *
- * Everything here is pure: a `Date` in, a classification or a number out. The
- * clock is always Asia/Shanghai (a fixed UTC+8, no DST since 1991), computed
- * arithmetically from the epoch so the result never depends on the browser's own
- * timezone, an `Intl` formatter, or the machine's locale data.
- *
- * Policy under test (see `test/time-slot.test.mjs`):
- *   - workday (Mon–Fri) peak slots: Beijing [09:00, 12:00) and [14:00, 18:00)
- *   - everything else, including the whole weekend, is valley
- *   - a valley runs continuously to the next peak start, so Friday evening and
- *     the weekend end at Monday 09:00
- *
- * The peak windows are the same windows DeepSeek discounts, so they also pick
- * the price tier the menu prices.
- */
 import { type PriceTier } from './pricing';
 /**
- * Beijing weekday: 0 = Sunday ... 6 = Saturday. Weekends (Sat/Sun) are
- * off-peak valley all day; workdays keep the original peak schedule.
+ * Beijing weekday: 0 = Sunday ... 6 = Saturday. Weekends (Sat/Sun) and statutory
+ * holidays are off-peak valley all day; the remaining workdays keep the original
+ * peak schedule.
  */
 export declare function getBeijingWeekday(date: Date): number;
 /**
@@ -36,7 +20,8 @@ export declare function tierOf(date: Date): PriceTier;
  * Seconds until the current peak/valley slot ends, for a given instant.
  * A peak ends at the same day's 12:00 or 18:00; a valley runs continuously
  * until the next peak start (Friday-evening and weekend valleys therefore
- * end at Monday 09:00).
+ * end at Monday 09:00, and the evening before a holiday at the first peak
+ * after it).
  */
 export declare function getSlotRemaining(date: Date): number;
 /** Format a second countdown as HH:MM:SS, or `Xd HH:MM:SS` when ≥ 24h. */
