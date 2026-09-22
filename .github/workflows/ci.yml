@@ -10,11 +10,12 @@ jobs:
   build-test:
     runs-on: ubuntu-latest
     # 多版本兼容矩阵：对 dsh-v0.1.3-alpha.1 ~ alpha.2、dsh-v0.1.5-alpha.1、
-    # alpha.2、rc.1、rc.2 与 dsh-v0.1.6-alpha.1、alpha.2 各验一遍 typecheck +
-    # build + test（0.1.3 ~ 0.1.5 各 tag 的契约面逐字一致；0.1.6 重写了客户端
-    # 模块系统与槽位实现，但插件消费的声明逐条未变——分别验证才能守住承诺）。
-    # dsh-v0.1.2-alpha.1 ~ rc.1 的兼容性已放弃：不再入矩阵、不再验证与修复；
-    # 上游出现破坏性变更时只跟进新版本，删除旧 tag 即可。
+    # alpha.2、rc.1、rc.2、dsh-v0.1.6-alpha.1、alpha.2 与 dsh-v0.1.7-alpha.1 各验
+    # 一遍 typecheck + build + test（0.1.3 ~ 0.1.5 各 tag 的契约面逐字一致；0.1.6
+    # 重写了客户端模块系统与槽位实现、0.1.7 又换了 cordis 代际并重写组合层，但插件
+    # 消费的声明逐条未变——分别验证才能守住承诺）。dsh-v0.1.2-alpha.1 ~ rc.1 的
+    # 兼容性已放弃：不再入矩阵、不再验证与修复；上游出现破坏性变更时只跟进新版本，
+    # 删除旧 tag 即可。
     strategy:
       fail-fast: false
       matrix:
@@ -35,6 +36,8 @@ jobs:
             pin: 0a15e36e7f82b6ed45af6fa9759f29b40dcd965d
           - tag: dsh-v0.1.6-alpha.2
             pin: ddefc45fbc7f8e46dd73185e68295696d1297887
+          - tag: dsh-v0.1.7-alpha.1
+            pin: c36a83ff6bb95e3f82cf79f9be7c724270a8aa61
     steps:
       - uses: actions/checkout@v4
 
