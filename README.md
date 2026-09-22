@@ -33,7 +33,7 @@
 
 旧代 `0.1.1-rc.2` 不再挂在任何 dist-tag 上，仅可按确切版本安装（不兼容，见「兼容性」）。
 
-源码安装（GitHub Release [`v0.1.6-alpha.2`](https://github.com/VinciBeans/deepseek-plugin-liangwengu/releases/tag/v0.1.6-alpha.2) 即当前源码版；npm 上尚无 0.1.5 / 0.1.6 系列）：`dsh plugin --profile web add .`。
+源码安装（GitHub Release [`v0.1.7-alpha.1`](https://github.com/VinciBeans/deepseek-plugin-liangwengu/releases/tag/v0.1.7-alpha.1) 即当前源码版；npm 上尚无 0.1.5 / 0.1.6 / 0.1.7 系列）：`dsh plugin --profile web add .`。
 
 ## Quickstart
 
