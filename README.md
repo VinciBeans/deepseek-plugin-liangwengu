@@ -21,19 +21,18 @@
 
 需要已安装 DSH，并至少成功启动过一次 Web GUI。从 npm 安装（按 dist-tag 选择）：
 
-1. **npm `latest`**（0.1.3-alpha.2，与 `next` 同步）— 兼容 dsh v0.1.3-alpha.1 ~ v0.1.7-alpha.1：
+1. **npm `latest`**（0.1.5-rc.1）— 兼容 dsh v0.1.3-alpha.1 ~ v0.1.5-rc.1：
    ```sh
    dsh plugin --profile web add liangwengu
-   # 等价写法：dsh plugin --profile web add liangwengu@next
    ```
-2. **npm `alpha`**（0.1.2-alpha.5）— 与 `latest` 同一契约代，保守通道：
+2. **npm `alpha`**（0.1.7-alpha.1）— 兼容 dsh v0.1.3-alpha.1 ~ v0.1.7-alpha.1：
    ```sh
    dsh plugin --profile web add liangwengu@alpha
    ```
 
 旧代 `0.1.1-rc.2` 不再挂在任何 dist-tag 上，仅可按确切版本安装（不兼容，见「兼容性」）。
 
-源码安装（GitHub Release [`v0.1.7-alpha.1`](https://github.com/VinciBeans/deepseek-plugin-liangwengu/releases/tag/v0.1.7-alpha.1) 即当前源码版；npm 上尚无 0.1.5 / 0.1.6 / 0.1.7 系列）：`dsh plugin --profile web add .`。
+源码安装（GitHub Release [`v0.2.2-rc.2`](https://github.com/VinciBeans/deepseek-plugin-liangwengu/releases/tag/v0.2.2-rc.2) 即当前源码版；npm 上尚无 0.2.2 系列）：`dsh plugin --profile web add .`。
 
 ## Quickstart
 
