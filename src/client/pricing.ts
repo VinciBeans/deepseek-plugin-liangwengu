@@ -9,6 +9,13 @@
  * classifies as 梁文峰 / 梁文谷 (`time-slot.ts` over `holidays.ts`), so the menu
  * reuses that classification instead of keeping a second copy of the schedule.
  *
+ * The official page now lists two models — `deepseek-flash` (currently
+ * DeepSeek-V4.1-Flash-1017) and `deepseek-v4-pro`. The retired names
+ * `deepseek-v4-flash` and `deepseek-v4-flash-vision-exp` are still callable and
+ * are routed to, and billed at, the Flash price; {@link LEGACY_MODEL_ALIASES}
+ * maps them so a session recorded under an old name still prices correctly
+ * without its own row in the menu.
+ *
  * Prices are not one table but a list of dated revisions per model: an official
  * price change is recorded as a new {@link RateRevision} carrying the instant it
  * takes effect, and every read resolves the revision in force at that instant.
@@ -74,79 +81,74 @@ export const PRICING_SOURCE_URL = 'https://api-docs.deepseek.com/zh-cn/quick_sta
  * order, and a fallback that silently follows it means inserting a row can
  * change which model prices everything.
  */
-export const FALLBACK_MODEL_ID = 'deepseek-v4-flash'
+export const FALLBACK_MODEL_ID = 'deepseek-flash'
 
-/** Date the base table was last transcribed from {@link PRICING_SOURCE_URL}. */
-export const PRICING_UPDATED_AT = '2026-09-08'
+/** Date the table was last transcribed from {@link PRICING_SOURCE_URL}. */
+export const PRICING_UPDATED_AT = '2026-11-13'
 
 /**
- * Instant the announced flash-series price change takes effect:
- * 北京时间 2026-09-10 12:00 (= 04:00 UTC, Asia/Shanghai being a fixed UTC+8).
+ * Retired provider ids the official page still routes to `deepseek-flash`.
+ *
+ * V4 Flash and V4 Flash Vision Exp went offline on 2026-09-10 and now bill at
+ * Flash rates under their old names. They stay aliases rather than table rows:
+ * the official page lists only the two current models, and a session recorded
+ * before the rename must still price correctly.
  */
-export const FLASH_PRICE_CHANGE_AT = Date.UTC(2026, 8, 10, 4, 0, 0)
+export const LEGACY_MODEL_ALIASES: Readonly<Record<string, string>> = Object.freeze({
+  'deepseek-v4-flash': 'deepseek-flash',
+  'deepseek-v4-flash-vision-exp': 'deepseek-flash',
+})
 
 /** One frozen tier's rates. */
 function rate(cacheHit: number, cacheMiss: number, output: number): TierRate {
   return Object.freeze({ cacheHit, cacheMiss, output })
 }
 
-/** Rates in force before {@link FLASH_PRICE_CHANGE_AT}. */
-const FLASH_BASE: RateRevision = Object.freeze({
+/** 空闲时段 命中 0.02 / 未命中 1 / 输出 4 元 per million tokens, peak at twice that. */
+const FLASH_RATES: RateRevision = Object.freeze({
   effectiveFrom: 0,
-  offPeak: rate(0.05, 1.5, 4.5),
-  peak: rate(0.1, 3, 9),
-})
-
-/**
- * The announced flash-series cut: 空闲时段 命中 0.02 / 未命中 1 / 输出 4 元 per
- * million tokens, with 高峰时段 exactly twice that.
- */
-const FLASH_CUT: RateRevision = Object.freeze({
-  effectiveFrom: FLASH_PRICE_CHANGE_AT,
   offPeak: rate(0.02, 1, 4),
   peak: rate(0.04, 2, 8),
+})
+
+/** 空闲时段 命中 0.15 / 未命中 4.5 / 输出 13.5 元 per million tokens, peak at twice that. */
+const PRO_RATES: RateRevision = Object.freeze({
+  effectiveFrom: 0,
+  offPeak: rate(0.15, 4.5, 13.5),
+  peak: rate(0.3, 9, 27),
 })
 
 /** The official table, in menu order. */
 export const OFFICIAL_MODELS: readonly [OfficialModel, ...OfficialModel[]] = [
   {
-    id: 'deepseek-v4-flash',
-    pricing: { name: 'V4-Flash', revisions: [FLASH_BASE, FLASH_CUT] },
+    id: 'deepseek-flash',
+    pricing: { name: 'V4.1-Flash', revisions: [FLASH_RATES] },
   },
   {
     id: 'deepseek-v4-pro',
-    pricing: {
-      name: 'V4-Pro',
-      revisions: [{
-        effectiveFrom: 0,
-        offPeak: rate(0.15, 4.5, 13.5),
-        peak: rate(0.3, 9, 27),
-      }],
-    },
-  },
-  {
-    // The notice says "flash 系列"; the official page prices this vision variant
-    // identically to deepseek-v4-flash, so it moves with the same revision.
-    id: 'deepseek-v4-flash-vision-exp',
-    pricing: { name: 'V4-Flash-Vision', revisions: [FLASH_BASE, FLASH_CUT] },
-  },
-  {
-    // V4.1-Flash is priced line-for-line with the rest of the flash series, so
-    // it reuses the same two revisions rather than copying their numbers: the
-    // announced flash cut moves it as well.
-    id: 'deepseek-flash',
-    pricing: { name: 'V4.1-Flash', revisions: [FLASH_BASE, FLASH_CUT] },
+    pricing: { name: 'V4-Pro', revisions: [PRO_RATES] },
   },
 ]
 
 /**
+ * Resolve one provider id to the id of its row in the official table.
+ * @param modelId - provider-owned model id, possibly a retired alias.
+ * @returns the table id, or undefined when the table does not price the model.
+ */
+export function canonicalModelId(modelId: string | null | undefined): string | undefined {
+  if (modelId === null || modelId === undefined) return undefined
+  const id = LEGACY_MODEL_ALIASES[modelId] ?? modelId
+  return OFFICIAL_MODELS.some(entry => entry.id === id) ? id : undefined
+}
+
+/**
  * Look one model id up in the official table.
- * @param modelId - provider-owned model id.
- * @returns its pricing (all revisions), or undefined when the id is not listed.
+ * @param modelId - provider-owned model id, including a retired alias.
+ * @returns its pricing, or undefined when the id is not priced.
  */
 export function lookupPricing(modelId: string | null | undefined): ModelPricing | undefined {
-  if (modelId === null || modelId === undefined) return undefined
-  return OFFICIAL_MODELS.find(entry => entry.id === modelId)?.pricing
+  const id = canonicalModelId(modelId)
+  return id === undefined ? undefined : OFFICIAL_MODELS.find(entry => entry.id === id)?.pricing
 }
 
 /**

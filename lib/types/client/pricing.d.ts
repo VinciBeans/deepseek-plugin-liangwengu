@@ -9,6 +9,13 @@
  * classifies as 梁文峰 / 梁文谷 (`time-slot.ts` over `holidays.ts`), so the menu
  * reuses that classification instead of keeping a second copy of the schedule.
  *
+ * The official page now lists two models — `deepseek-flash` (currently
+ * DeepSeek-V4.1-Flash-1017) and `deepseek-v4-pro`. The retired names
+ * `deepseek-v4-flash` and `deepseek-v4-flash-vision-exp` are still callable and
+ * are routed to, and billed at, the Flash price; {@link LEGACY_MODEL_ALIASES}
+ * maps them so a session recorded under an old name still prices correctly
+ * without its own row in the menu.
+ *
  * Prices are not one table but a list of dated revisions per model: an official
  * price change is recorded as a new {@link RateRevision} carrying the instant it
  * takes effect, and every read resolves the revision in force at that instant.
@@ -64,20 +71,30 @@ export declare const PRICING_SOURCE_URL = "https://api-docs.deepseek.com/zh-cn/q
  * order, and a fallback that silently follows it means inserting a row can
  * change which model prices everything.
  */
-export declare const FALLBACK_MODEL_ID = "deepseek-v4-flash";
-/** Date the base table was last transcribed from {@link PRICING_SOURCE_URL}. */
-export declare const PRICING_UPDATED_AT = "2026-09-08";
+export declare const FALLBACK_MODEL_ID = "deepseek-flash";
+/** Date the table was last transcribed from {@link PRICING_SOURCE_URL}. */
+export declare const PRICING_UPDATED_AT = "2026-11-13";
 /**
- * Instant the announced flash-series price change takes effect:
- * 北京时间 2026-09-10 12:00 (= 04:00 UTC, Asia/Shanghai being a fixed UTC+8).
+ * Retired provider ids the official page still routes to `deepseek-flash`.
+ *
+ * V4 Flash and V4 Flash Vision Exp went offline on 2026-09-10 and now bill at
+ * Flash rates under their old names. They stay aliases rather than table rows:
+ * the official page lists only the two current models, and a session recorded
+ * before the rename must still price correctly.
  */
-export declare const FLASH_PRICE_CHANGE_AT: number;
+export declare const LEGACY_MODEL_ALIASES: Readonly<Record<string, string>>;
 /** The official table, in menu order. */
 export declare const OFFICIAL_MODELS: readonly [OfficialModel, ...OfficialModel[]];
 /**
+ * Resolve one provider id to the id of its row in the official table.
+ * @param modelId - provider-owned model id, possibly a retired alias.
+ * @returns the table id, or undefined when the table does not price the model.
+ */
+export declare function canonicalModelId(modelId: string | null | undefined): string | undefined;
+/**
  * Look one model id up in the official table.
- * @param modelId - provider-owned model id.
- * @returns its pricing (all revisions), or undefined when the id is not listed.
+ * @param modelId - provider-owned model id, including a retired alias.
+ * @returns its pricing, or undefined when the id is not priced.
  */
 export declare function lookupPricing(modelId: string | null | undefined): ModelPricing | undefined;
 /**

@@ -41,11 +41,18 @@ import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type { PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-ui-renderer/client'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
+// Type-only: the standard Session props (useProjection / sessionId) of a
+// session-scoped slot entry. The merge lives in ui-session, which ui-conversation
+// only dev-depends on, so the import is explicit.
+import type {} from '@deepseek-ai/dsh-client-ui-session/client'
 // Type-only: merge the `tokenUsage` and `modelSelection` session projections
 // into SessionProjectionMap so the slot-supplied useProjection reads them.
+// tokenUsage lives in token-meter; modelSelection's merge moved from
+// session-controller/types (≤ 0.2.1) to agent/types (0.2.2+), so both are pulled.
 import type {} from '@deepseek-ai/dsh-token-meter/client'
 import type {} from '@deepseek-ai/dsh-api-session-controller/types'
-import { activeRevision, FALLBACK_MODEL_ID, lookupPricing, OFFICIAL_MODELS, type OfficialModel } from './pricing'
+import type {} from '@deepseek-ai/dsh-agent/types'
+import { activeRevision, canonicalModelId, FALLBACK_MODEL_ID, OFFICIAL_MODELS, type OfficialModel } from './pricing'
 import {
   formatCountdown,
   getSlotLabel,
@@ -205,9 +212,13 @@ export function TimeSlotIndicator({ useProjection, sessionId }: IndicatorProps) 
   const usage = useProjection('tokenUsage')
   const modelSelection = useProjection('modelSelection')
   const sessionModelId = modelSelection?.next?.model ?? modelSelection?.lastUsed?.model ?? null
-  const sessionPriced = lookupPricing(sessionModelId) !== undefined
+  // A retired model name is still billed as its canonical model, so the table
+  // highlights that row and a user pick overrides both.
+  const sessionPricedId = canonicalModelId(sessionModelId)
+  const sessionPriced = sessionPricedId !== undefined
   const activeModelId = pickedModelId
-    ?? (sessionModelId !== null && sessionPriced ? sessionModelId : FALLBACK_MODEL_ID)
+    ?? sessionPricedId
+    ?? FALLBACK_MODEL_ID
   const activeEntry: OfficialModel = OFFICIAL_MODELS.find(entry => entry.id === activeModelId) ?? OFFICIAL_MODELS[0]
   // Resolve the revision in force right now: a scheduled official price change
   // flips the menu by itself as the per-second tick re-renders.
@@ -302,15 +313,16 @@ export {
 export {
   activeRevision,
   cacheHitRate,
+  canonicalModelId,
   compositePerYiTokens,
   costYuan,
   FALLBACK_MODEL_ID,
-  FLASH_PRICE_CHANGE_AT,
   formatBeijingDateTime,
   formatCompactTokens,
   formatHitRate,
   formatMoney,
   formatRate,
+  LEGACY_MODEL_ALIASES,
   lookupPricing,
   nextRevision,
   OFFICIAL_MODELS,

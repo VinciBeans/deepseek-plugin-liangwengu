@@ -14,6 +14,7 @@ import {
   formatCompactTokens,
   formatHitRate,
   formatMoney,
+  LEGACY_MODEL_ALIASES,
   lookupPricing,
   rateAt,
   tierLabel,
@@ -48,6 +49,9 @@ export const CompositeSection = memo(function CompositeSection({
   const composite = billed ? compositePerYiTokens(usage, rate) : null
   const cost = billed ? costYuan(usage, rate) : null
   const sessionPriced = lookupPricing(sessionModelId) !== undefined
+  // The official page retired these ids but still serves and bills them as Flash;
+  // the note says so instead of calling the session model unpriced.
+  const legacyTargetId = sessionModelId === null ? undefined : LEGACY_MODEL_ALIASES[sessionModelId]
 
   return (
     <>
@@ -89,6 +93,11 @@ export const CompositeSection = memo(function CompositeSection({
       {revision.effectiveFrom > 0 && (
         <div className="dsh-lwgu-note">
           整段会话用量统一按调价后单价折算，调价前的历史用量未分段还原。
+        </div>
+      )}
+      {legacyTargetId !== undefined && (
+        <div className="dsh-lwgu-note">
+          当前模型 {sessionModelId} 是旧模型名，官方仍按 {lookupPricing(legacyTargetId)?.name ?? legacyTargetId} 计价。
         </div>
       )}
       {sessionModelId !== null && !sessionPriced && (

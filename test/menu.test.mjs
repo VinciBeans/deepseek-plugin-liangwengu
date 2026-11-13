@@ -7,9 +7,9 @@
  *
  * The pure pricing math lives in test/pricing.test.mjs; this file covers what
  * only a render can: the menu opening and closing, and the menu showing the
- * price revision in force at a given instant. The clock is faked to sit on
- * either side of the announced flash cut, so the switch is asserted
- * deterministically instead of depending on when the suite runs.
+ * rates in force for the current tier. The clock is faked into a peak window
+ * and an off-peak window, so the tier switch is asserted deterministically
+ * instead of depending on when the suite runs.
  *
  * The whole run is wrapped so a failing assertion still tears the jsdom window
  * down: the badge's per-second tick would otherwise keep the event loop alive
@@ -169,14 +169,17 @@ function modelRow(name) {
   return row
 }
 
-const flash = plugin.lookupPricing('deepseek-v4-flash')
-const cut = plugin.FLASH_PRICE_CHANGE_AT
+const flash = plugin.lookupPricing('deepseek-flash')
+/** 2026-11-13 10:00 北京时间, a Friday inside the morning peak window. */
+const PEAK_AT = Date.UTC(2026, 10, 13, 2, 0, 0)
+/** 2026-11-14 10:00 北京时间, a Saturday, so all day is off-peak. */
+const OFFPEAK_AT = Date.UTC(2026, 10, 14, 2, 0, 0)
 const bundleSource = readFileSync(new URL('../lib/client.js', import.meta.url), 'utf8')
 
 try {
-  // ── scenario 1: one hour BEFORE the announced flash cut (peak tier) ──────
+  // ── scenario 1: a peak instant ───────────────────────────────────────────
   {
-    const at = cut - 3600_000 // 2026-09-10 11:00 北京时间
+    const at = PEAK_AT
     assert.equal(tierAt(at), 'peak')
     const expected = plugin.rateAt(flash, at, 'peak')
     const { button } = await mount(at)
@@ -217,19 +220,29 @@ try {
       text.includes(plugin.formatRate(expected.cacheHit))
       && text.includes(plugin.formatRate(expected.cacheMiss))
       && text.includes(plugin.formatRate(expected.output)),
-      `menu prices the pre-cut rates ${JSON.stringify(expected)}`,
+      `menu prices the peak rates ${JSON.stringify(expected)}`,
     )
     assert.ok(text.includes('缓存命中率') && text.includes('90.0%'), 'menu shows the cache-hit rate')
     assert.ok(
       text.includes(plugin.formatMoney(plugin.compositePerYiTokens(usage, expected)))
       && text.includes('元 / 亿 tokens'),
-      'menu shows the blended price for the pre-cut revision',
+      'menu shows the blended price for the peak tier',
     )
-    assert.ok(text.includes('2026-09-10 12:00 起 V4-Flash / V4-Flash-Vision / V4.1-Flash 调价'), 'menu announces the pending change for every affected model')
-    // V4.1-Flash renders as its own row priced line-for-line with V4-Flash.
-    const v41Cells = [...modelRow('V4.1-Flash').children].slice(1).map(cell => cell.textContent)
-    const flashCells = [...modelRow('V4-Flash').children].slice(1).map(cell => cell.textContent)
-    assert.deepEqual(v41Cells, flashCells, 'V4.1-Flash shows the same rates as V4-Flash')
+    // The official page lists two models; the retired flash ids are aliases, so
+    // the grid has exactly two rows and no scheduled-change note is due.
+    assert.equal(document.querySelectorAll('.dsh-lwgu-grid-row').length, 2, 'the grid lists the two official models')
+    assert.deepEqual(
+      [...document.querySelectorAll('.dsh-lwgu-grid-row')].map(row => row.firstElementChild.textContent),
+      ['V4.1-Flash', 'V4-Pro'],
+      'the grid rows are the current official models in menu order',
+    )
+    assert.ok(text.includes('价目表更新于 2026-11-13'), 'the table carries its transcription date')
+    assert.ok(!text.includes('起生效') && !text.includes('调价：'), 'no stale scheduled-change note is shown')
+    // The session model is the retired `deepseek-v4-flash`; it still prices, and
+    // the table highlights the canonical Flash row.
+    assert.equal(modelRow('V4.1-Flash').getAttribute('aria-pressed'), 'true', 'the alias session model highlights V4.1-Flash')
+    assert.ok(text.includes('当前模型 deepseek-v4-flash 是旧模型名，官方仍按 V4.1-Flash 计价'), 'the menu names the retired model alias')
+    assert.ok(!text.includes('不在官方价目表中'), 'an alias is not reported as unpriced')
 
     // ── the balance detail block sits at the very foot of the panel ────────
     assert.ok(text.includes('账户余额'), 'menu shows the balance heading')
@@ -265,7 +278,7 @@ try {
 
   // ── scenario 2: a host of a different build is called out ────────────────
   {
-    const at = cut - 3600_000
+    const at = PEAK_AT
     const { button } = await mount(at)
     button.dispatchEvent(new window.MouseEvent('click', { bubbles: true }))
     await tick()
@@ -290,9 +303,9 @@ try {
     assert.ok(document.querySelector('.dsh-lwgu-panel') === null, 'the mismatch scenario closes its menu')
   }
 
-  // ── scenario 2: one hour AFTER the cut (off-peak tier, new rates) ────────
+  // ── scenario 3: an off-peak instant prices the half-price rates ──────────
   {
-    const at = cut + 3600_000 // 2026-09-10 13:00 北京时间
+    const at = OFFPEAK_AT
     assert.equal(tierAt(at), 'offPeak')
     const expected = plugin.rateAt(flash, at, 'offPeak')
     assert.deepEqual(expected, { cacheHit: 0.02, cacheMiss: 1, output: 4 })
@@ -307,12 +320,12 @@ try {
       text.includes(plugin.formatRate(expected.cacheHit))
       && text.includes(plugin.formatRate(expected.cacheMiss))
       && text.includes(plugin.formatRate(expected.output)),
-      'menu switched to the post-cut rates',
+      'menu prices the off-peak rates',
     )
-    assert.ok(text.includes('2026-09-10 12:00 起生效'), 'menu labels the effective revision')
+    assert.ok(text.includes('空闲时段'), 'menu labels the off-peak tier')
     assert.ok(
       text.includes(plugin.formatMoney(plugin.compositePerYiTokens(usage, expected))),
-      'menu shows the blended price for the post-cut revision',
+      'menu shows the blended price for the off-peak tier',
     )
 
     // Escape closes.
@@ -321,9 +334,9 @@ try {
     assert.ok(document.querySelector('.dsh-lwgu-panel') === null, 'Escape closes the menu')
   }
 
-  // ── scenario 3: a picked model resets when the Session changes ───────────
+  // ── scenario 4: a picked model resets when the Session changes ───────────
   {
-    const at = cut + 3600_000
+    const at = OFFPEAK_AT
     const { root, button } = await mount(at, 'session-a')
     button.dispatchEvent(new window.MouseEvent('click', { bubbles: true }))
     await tick()
@@ -335,7 +348,29 @@ try {
     root.render(react.createElement(plugin.TimeSlotIndicator, { useProjection, sessionId: 'session-b' }))
     await tick()
     assert.ok(modelRow('V4-Pro').getAttribute('aria-pressed') === 'false', 'picked model resets on Session change')
-    assert.ok(modelRow('V4-Flash').getAttribute('aria-pressed') === 'true', 'priced model falls back to the Session model')
+    assert.ok(modelRow('V4.1-Flash').getAttribute('aria-pressed') === 'true', 'priced model falls back to the Session model')
+    document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    await tick()
+  }
+
+  // ── scenario 5: a model the table cannot price says so ───────────────────
+  {
+    projections.modelSelection = {
+      next: { provider: 'deepseek-official', model: 'deepseek-chat' },
+      lastUsed: null,
+    }
+    const { button } = await mount(OFFPEAK_AT, 'session-c')
+    button.dispatchEvent(new window.MouseEvent('click', { bubbles: true }))
+    await tick()
+    const text = document.querySelector('.dsh-lwgu-panel').textContent
+    assert.ok(text.includes('当前模型 deepseek-chat 不在官方价目表中，已改用 V4.1-Flash 计价'), 'an unpriced model names the fallback')
+    assert.equal(modelRow('V4.1-Flash').getAttribute('aria-pressed'), 'true', 'the fallback row is highlighted')
+    projections.modelSelection = {
+      next: { provider: 'deepseek-official', model: 'deepseek-v4-flash' },
+      lastUsed: null,
+    }
+    document.dispatchEvent(new window.KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    await tick()
   }
 
   // ── artifact contracts ───────────────────────────────────────────────────
@@ -359,5 +394,5 @@ try {
   dom.window.close()
 }
 
-console.log('menu test ok (pre-cut + post-cut render, open/outside-close/Escape, blended price, session-scoped picker reset)')
+console.log('menu test ok (peak + off-peak render, retired-alias note, official model list, open/outside-close/Escape, blended price, session-scoped picker reset, unpriced fallback)')
 clearTimeout(watchdog)
